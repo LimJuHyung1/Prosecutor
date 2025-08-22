@@ -1,23 +1,19 @@
-using Newtonsoft.Json.Linq;
-using System.Text.RegularExpressions;
-using OpenAI;
+﻿using Newtonsoft.Json.Linq;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
-using UnityEngine.InputSystem; // �� �Է� �ý��� ���ӽ����̽�
-using TMPro;
+using OpenAI;
 
-
-public class ConversationManager : MonoBehaviour
+public class CourtManager : MonoBehaviour
 {
     public Image screen;
-    public GameObject conversationUI;    
+    public GameObject conversationUI;
     public GameObject dialogue;  // ��ȭ UI    
     private Image[] slides = new Image[2];
-    public SummaryManager summaryManager;
-    public LogManager logManager;
 
     private Button endConversationBtn;  // ��ȭ ���� ��ư
     private InputField inputField;
@@ -49,7 +45,7 @@ public class ConversationManager : MonoBehaviour
     private float duration = 1.0f;     // �̵��� �ɸ��� �ð�
 
     public Player player;
-    [SerializeField] private SpecificNPC npcRole;
+    [SerializeField] private Lawyer lawyer;
     private Coroutine displayCoroutine;
 
     private Queue<string> sentencesQueue = new Queue<string>();
@@ -73,6 +69,8 @@ public class ConversationManager : MonoBehaviour
         {
             StartCoroutine(WaitAndLogInput());
         });
+
+        StartConversation();
     }
 
     private IEnumerator WaitAndLogInput()
@@ -117,9 +115,9 @@ public class ConversationManager : MonoBehaviour
     /// <summary>
     /// Player ��ũ��Ʈ���� ���� ��ȭ�ϴ� NPC�� �����ϴ� �޼���
     /// </summary>    
-    public void GetNPCRole(SpecificNPC npcParam)
+    public void GetNPCRole(Lawyer npcParam)
     {
-        npcRole = npcParam;
+        lawyer = npcParam;
     }
 
     /// <summary>
@@ -127,7 +125,7 @@ public class ConversationManager : MonoBehaviour
     /// </summary>
     public void RemoveNPCRole()
     {
-        npcRole = null;
+        lawyer = null;
     }
 
 
@@ -136,14 +134,14 @@ public class ConversationManager : MonoBehaviour
     /// </summary>
     public void AddListenersResponse()
     {
-        if (npcRole != null)
+        if (lawyer != null)
         {
-            OnEndEditAskField(npcRole.GetResponse);
-            OnEndEditAskField(SetNullInputField);            
+            OnEndEditAskField(lawyer.GetResponse);
+            OnEndEditAskField(SetNullInputField);
         }
     }
 
-    
+
     /// <param name="action"></param>
     public void OnEndEditAskField(UnityAction action)
     {
@@ -151,7 +149,7 @@ public class ConversationManager : MonoBehaviour
         {
             if (!string.IsNullOrWhiteSpace(text))
             {
-                tmpQuestion = text.Trim();                
+                tmpQuestion = text.Trim();
                 action();
             }
         });
@@ -180,22 +178,17 @@ public class ConversationManager : MonoBehaviour
     /// <summary>
     /// ��ȭ�� �����ϴ� �޼��� (���콺 Ŭ�� �� ����)
     /// </summary>
-    public void StartConversation(SpecificNPC npcParam)
+    public void StartConversation()
     {
-        isTalking = true;    
+        isTalking = true;
         NPCName.text = "";
         NPCLine.text = "";
+        NPCName.color = lawyer.GetCurrentHairColor();
 
-        if(npcParam.currentCharacter == SpecificNPC.Character.William)
-            NPCName.color = Color.blue;
-        else if(npcParam.currentCharacter == SpecificNPC.Character.John)
-            NPCName.color = Color.purple;
-        else if(npcParam.currentCharacter == SpecificNPC.Character.Emma)
-            NPCName.color = Color.yellow;
-
-        GetNPCRole(npcParam);
-        player.GetLookAtTarget(npcParam.GetAnchor());
-        StartCoroutine(StartConversationCoroutine());
+        GetNPCRole(lawyer);
+        // player.GetLookAtTarget(lawyer.GetAnchor());
+        // StartCoroutine(StartConversationCoroutine());
+        StartConversationCoroutine();
         AddListenersResponse();
         Slide(true);
 
@@ -205,9 +198,9 @@ public class ConversationManager : MonoBehaviour
         CursorManager.Instance.OnVisualization();
     }
 
-    private IEnumerator StartConversationCoroutine()
+    private void StartConversationCoroutine()
     {
-        yield return FadeUtility.Instance.SwitchCameraWithFade(screen, player, npcRole);
+        // yield return FadeUtility.Instance.SwitchCameraWithFade(screen, player, lawyer);
         dialogue.SetActive(true);
         conversationUI.SetActive(true);
         // SetAudio();
@@ -219,16 +212,16 @@ public class ConversationManager : MonoBehaviour
     public void EndConversation()
     {
         dialogue.SetActive(false);
-        conversationUI.SetActive(false);        
+        conversationUI.SetActive(false);
         EndConversationCoroutine();
         Slide(false);
     }
 
     private void EndConversationCoroutine()
-    {        
+    {
         SetNullInputField();
         RemoveOnEndEditListener();
-        SetBlankAnswerText();        
+        SetBlankAnswerText();
 
         CursorManager.Instance.OnVisualization();
         isTalking = false;
@@ -262,7 +255,7 @@ public class ConversationManager : MonoBehaviour
     /// </summary>
     public void ShowAnswer(string answer)
     {
-        if (npcRole == null)
+        if (lawyer == null)
         {
             Debug.LogError("NPC�� �����ϴ�!");
             return;
@@ -282,12 +275,13 @@ public class ConversationManager : MonoBehaviour
             }
 
             JObject json = JObject.Parse(answer); // JSON �Ľ�
-
+            responseText = json["response"]?.ToString();
+            /*
             emotion = json["emotion"]?.ToString();
             responseText = json["response"]?.ToString();
             truth_status = json["truth_status"]?.ToString();
 
-            npcRole.PlayOnomatopoeia(emotion);
+            lawyer.PlayOnomatopoeia(emotion);
 
             if (truth_status == "True")
             {
@@ -304,11 +298,7 @@ public class ConversationManager : MonoBehaviour
                 NPCLine.color = Color.white;
                 Debug.LogError("truth_status is not True or Lie");
             }
-            
-            // 로컬라이제이션 할 때 주의!
-            summaryManager.GetMessages("플레이어(player) : " + tmpQuestion, 
-                npcRole.currentCharacter.ToString() + " : " + responseText.Trim());
-            logManager.AddNewLog(npcRole, tmpQuestion, responseText.Trim());
+            */
 
             if (string.IsNullOrWhiteSpace(responseText))
             {
@@ -388,7 +378,7 @@ public class ConversationManager : MonoBehaviour
     {
         if (!isTalking) yield break;
 
-        switch (npcRole.name)
+        switch (lawyer.name)
         {
             case "William(Clone)":
                 NPCName.text = "윌리엄";

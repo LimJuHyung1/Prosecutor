@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31dd0a665199d9240b2605087f718ac0, type: 3}
   m_Name: John
   m_EditorClassIdentifier: 
-  profileImage: {fileID: 21300000, guid: 5d7150967e324e7418ee50c06b21f6c0, type: 3}
+  profileImage: {fileID: 21300000, guid: 2e3640f6da9531b4b866c948680bab6a, type: 3}
   name: "\uC874"
   age: "38\uC138"
   gender: "\uB0A8"

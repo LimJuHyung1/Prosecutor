@@ -14,8 +14,11 @@ public class NPCRoleInfoManager
     public string GetStyle(string npcName) => GetNPCRoleByName(npcName)?.style;
 
     public string GetConstraint(string npcName) => GetNPCRoleByName(npcName)?.constraint;
-    public string GetSpecificConstraint(string npcName) => GetNPCRoleByName(npcName)?.specificConstraint;
-    
+
+    public string GetHint1(string npcName) => GetNPCRoleByName(npcName)?.hint_1;
+    public string GetHint2(string npcName) => GetNPCRoleByName(npcName)?.hint_2;
+    public string GetHintFinal(string npcName) => GetNPCRoleByName(npcName)?.hint_final;
+
     public string GetFormat(string npcName) => GetNPCRoleByName(npcName)?.format;
 
     private NPCRoleInfo GetNPCRoleByName(string npcName)

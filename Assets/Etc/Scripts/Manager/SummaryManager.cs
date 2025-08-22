@@ -2,7 +2,7 @@ using OpenAI;
 using UnityEngine;
 using System.Collections.Generic;
 using TMPro;
-using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 
 public class SummaryManager : MonoBehaviour
 {
@@ -137,9 +137,27 @@ public class SummaryManager : MonoBehaviour
         // response != null 생략
         if (response.Choices != null && response.Choices.Count > 0)
         {
-            string summary = response.Choices[0].Message.Content;            
-            // ShowSummary(summary);
-            Debug.Log(summary);
+            string json = response.Choices[0].Message.Content;
+
+            try
+            {
+                JObject parsed = JObject.Parse(json);
+                string summaryText = parsed["summary"]?.ToString();     // 내가 추출해야 할 것
+
+                if (!string.IsNullOrEmpty(summaryText))
+                {
+                    Debug.Log($"summary: {summaryText}");
+                }
+                else
+                {
+                    Debug.LogWarning("summary 항목이 존재하지 않음");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"JSON 파싱 실패: {ex.Message}");
+                Debug.Log("전체 응답 내용: " + json);
+            }
         }
         else
         {
@@ -164,9 +182,9 @@ public class SummaryManager : MonoBehaviour
         // Character 열거형에서 한글 이름으로 변환
         string npcName = specificNPC.currentCharacter switch
         {
-            SpecificNPC.Character.William => "윌리엄",
-            SpecificNPC.Character.John => "존",
+            SpecificNPC.Character.William => "윌리엄",            
             SpecificNPC.Character.Emma => "엠마",
+            SpecificNPC.Character.John => "존",
             _ => "알 수 없음"
         };
 

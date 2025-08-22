@@ -8,6 +8,7 @@ public class Player : MonoBehaviour
 {
     public GameObject ThirdPersonAimCamera;
     public ConversationManager conversationManager;
+    public CourtManager courtManager;
 
     [SerializeField] private bool isTalking = false; // ��ȭ ������ ����
     public bool IsTalking
@@ -27,14 +28,6 @@ public class Player : MonoBehaviour
         audioSource = GetComponent<AudioSource>();
         cc = GetComponent<CharacterCustomization>();
         cc.InitColors();
-    }
-
-    void Update()
-    {
-        if (!isTalking && !conversationManager.GetIsTalking())
-        {
-
-        }
     }
 
 

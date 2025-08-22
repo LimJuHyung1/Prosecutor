@@ -16,6 +16,7 @@ public class GameManager : MonoBehaviour
     public ProfileManager profileManager;
     public ConversationManager conversationManager;
     public SummaryManager summaryManager;
+    public InterrogationStageManager interrogationStageManager;
     public Timer timer;
 
     public GameObject profileObject;            
@@ -27,7 +28,7 @@ public class GameManager : MonoBehaviour
     [Header("UI 참조")]
     public Image dayImage;
     private TextMeshProUGUI dayText;
-    private int day = 1;
+    [SerializeField] private int day = 1;
 
     /// <summary>
     /// MonoBehaviour가 생성된 후 Update가 처음 실행되기 전에 한 번 호출됩니다.
@@ -94,15 +95,14 @@ public class GameManager : MonoBehaviour
         if (day == 4 || day == 7)
         {
             ResetAllSuspectButtons();
-        }
-        
-        day++;
+        }                
     }
 
     public void NextDay(){
         SetupSuspectButtons(true);
         // summaryManager.HideSummary();
-        ShowDay();
+        day++;
+        ShowDay();        
     }
 
     /// <summary>
@@ -179,11 +179,16 @@ public class GameManager : MonoBehaviour
 
             if(day < 4){
                 instantiatedObject.GetComponent<SpecificNPC>().interrogationStage = SpecificNPC.InterrogationStage.Stage1;
+                SetupProfile(true);                
             }
             else if(day < 7){
                 instantiatedObject.GetComponent<SpecificNPC>().interrogationStage = SpecificNPC.InterrogationStage.Stage2;
+                interrogationStageManager.SetInvestigatorIntroActive(true);
+                interrogationStageManager.PlayInvestigatorIntro(SpecificNPC.InterrogationStage.Stage2, instantiatedObject.GetComponent<SpecificNPC>());
+                // 수사관 인트로 만들고 끝나면 StartInterrogation();
             }
-            else{
+            else
+            {
                 instantiatedObject.GetComponent<SpecificNPC>().interrogationStage = SpecificNPC.InterrogationStage.StageFinal;
             }
             
@@ -192,8 +197,6 @@ public class GameManager : MonoBehaviour
                 Debug.LogError("프리팹 생성 실패");
                 return;
             }
-
-            Debug.Log($"프리팹 생성 성공: {instantiatedObject.name}");
             
             currentNPC = instantiatedObject.GetComponent<SpecificNPC>();
 
@@ -206,8 +209,7 @@ public class GameManager : MonoBehaviour
             }
 
             currentNPC.GetConversationManager(conversationManager);
-            SetupSuspectButtons(false);
-            SetupProfile(true);        
+            SetupSuspectButtons(false);                
             profileManager.UpdateProfileUI(profiles[index]);
 
             // 버튼 비활성화 및 시각적 피드백

@@ -8,9 +8,9 @@ public class SpecificNPC : NPC
 {
     public enum Character
     {        
-        William,
-        John,
-        Emma
+        William,        
+        Emma,
+        John
     }
 
     public List<EmotionClipList> audioClipsPerEmotion;  // 0: Neutral, 1: Joy, 2: Sadness, 3: Anger, 4: Fear, 5: Disgust, 6: Surprise    
@@ -57,21 +57,21 @@ public class SpecificNPC : NPC
         chatMessages = new List<ChatMessage>(); // �� NPC���� �� ����Ʈ ����
 
         string taskContent = "";
-        string constraintContent = "";
+        string hint = "";
 
         switch (interrogationStage)
         {
             case InterrogationStage.Stage1:
                 taskContent = GetTask_1(npcName);
-                constraintContent = GetConstraint(npcName);
+                hint = GetHint1(npcName);
                 break;
             case InterrogationStage.Stage2:
                 taskContent = GetTask_2(npcName);
-                constraintContent = GetSpecificConstraint(npcName);
+                hint = GetHint2(npcName);
                 break;
             case InterrogationStage.StageFinal:
                 taskContent = GetTask_final(npcName);
-                constraintContent = GetSpecificConstraint(npcName);
+                hint = GetHintFinal(npcName);
                 break;
         }
 
@@ -84,7 +84,8 @@ public class SpecificNPC : NPC
             + taskContent
             + GetRule(npcName)
             + GetStyle(npcName)
-            + constraintContent
+            + GetConstraint(npcName)
+            + hint
             + GetFormat(npcName)
         };
         chatMessages.Add(systemMessage);

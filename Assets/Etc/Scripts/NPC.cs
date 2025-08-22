@@ -58,8 +58,10 @@ public class NPC : MonoBehaviour
     public string GetStyle(string npcName) => roleInfoManager.GetStyle(npcName);
 
     public string GetConstraint(string npcName) => roleInfoManager.GetConstraint(npcName);
-    public string GetSpecificConstraint(string npcName) => roleInfoManager.GetSpecificConstraint(npcName);
-    
+    public string GetHint1(string npcName) => roleInfoManager.GetHint1(npcName);
+    public string GetHint2(string npcName) => roleInfoManager.GetHint2(npcName);
+    public string GetHintFinal(string npcName) => roleInfoManager.GetHintFinal(npcName);
+
     public string GetFormat(string npcName) => roleInfoManager.GetFormat(npcName);
 
 }
