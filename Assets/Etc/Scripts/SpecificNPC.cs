@@ -29,7 +29,6 @@ public class SpecificNPC : NPC
     public enum InterrogationStage
     {
         Stage1,
-        Stage2,
         StageFinal
     }
 
@@ -62,12 +61,8 @@ public class SpecificNPC : NPC
         switch (interrogationStage)
         {
             case InterrogationStage.Stage1:
-                taskContent = GetTask_1(npcName);
-                hint = GetHint1(npcName);
-                break;
-            case InterrogationStage.Stage2:
-                taskContent = GetTask_2(npcName);
-                hint = GetHint2(npcName);
+                taskContent = GetTask(npcName);
+                hint = GetHint(npcName);
                 break;
             case InterrogationStage.StageFinal:
                 taskContent = GetTask_final(npcName);
@@ -128,6 +123,11 @@ public class SpecificNPC : NPC
         }
 
         emotionHandler.PlayEmotion(answer);
+    }
+
+    public void PlayEmotion(string line)
+    {
+        emotionHandler.PlayEmotion(line);
     }
 
     public string GetAnswer(){

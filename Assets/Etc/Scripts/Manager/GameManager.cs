@@ -4,6 +4,7 @@ using TMPro;
 
 public class GameManager : MonoBehaviour
 {
+    /*
     [Header("프리팹 참조")]
     [SerializeField] private GameObject[] suspectPrefabs = new GameObject[3];    // Resources 폴더의 용의자 프리팹 배열
     private readonly string[] suspectNames = new string[] { "William", "Emma", "John" };    // 용의자 프리팹 이름들
@@ -272,4 +273,5 @@ public class GameManager : MonoBehaviour
     {
         audioSource.Play();
     }
+    */
 }

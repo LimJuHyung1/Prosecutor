@@ -7,6 +7,7 @@ using static SpecificNPC;
 
 public class InterrogationStageManager : MonoBehaviour
 {    
+    /*
     private AudioSource audioSource;
 
     private Dictionary<(SpecificNPC.Character, InterrogationStage), AudioClip[]> _audioClipMap;
@@ -187,5 +188,6 @@ public class InterrogationStageManager : MonoBehaviour
             investigatorLine.text += letter;
             yield return new WaitForSeconds(delay); // 글자 간 간격
         }
-    }      
+    }     
+    */
 }

@@ -34,15 +34,34 @@ public class Player : MonoBehaviour
     public void GetLookAtTarget(Transform target)
     {
         ThirdPersonAimCamera.GetComponent<CinemachineCamera>().LookAt = target;
-    }    
+    }
 
-    public void ZoomCamera(bool isTrue)
+    public void ZoomCamera(int level)
     {
-        float targetDistance = isTrue ? 4.0f : 3.0f;
+        float targetDistance;
+
+        switch (level)
+        {
+            case 1: // 가까움
+                targetDistance = 2.5f;
+                break;
+            case 2: // 보통
+                targetDistance = 3.5f;
+                break;
+            case 3: // 멀리
+                targetDistance = 5.0f;
+                break;
+            default:
+                targetDistance = 3.5f; // 기본값 (보통)
+                break;
+        }
+
         if (zoomCoroutine != null)
             StopCoroutine(zoomCoroutine);
+
         zoomCoroutine = StartCoroutine(SmoothZoomCamera(targetDistance, 0.2f));
     }
+
 
     private IEnumerator SmoothZoomCamera(float targetDistance, float duration)
     {

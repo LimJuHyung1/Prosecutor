@@ -1,13 +1,16 @@
 using Newtonsoft.Json.Linq;
-using System.Text.RegularExpressions;
 using OpenAI;
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.Events;
-using UnityEngine.UI;
-using UnityEngine.InputSystem; // �� �Է� �ý��� ���ӽ����̽�
+using System.Text.RegularExpressions;
 using TMPro;
+using UnityEditor.Rendering;
+using UnityEngine;
+using UnityEngine.Audio;
+using UnityEngine.Events;
+using UnityEngine.InputSystem; // �� �Է� �ý��� ���ӽ����̽�
+using UnityEngine.UI;
 
 
 public class ConversationManager : MonoBehaviour
@@ -15,15 +18,21 @@ public class ConversationManager : MonoBehaviour
     public Image screen;
     public GameObject conversationUI;    
     public GameObject dialogue;  // ��ȭ UI    
+    public Timer timer;
     private Image[] slides = new Image[2];
-    public SummaryManager summaryManager;
+    // public SummaryManager summaryManager;
+    public InvestigationManager investigationManager;
     public LogManager logManager;
+    public RecommendationManager recommendationManager;
 
     private Button endConversationBtn;  // ��ȭ ���� ��ư
     private InputField inputField;
     [SerializeField] private Text NPCName;
+    public Text GetNPCName { get { return NPCName; } }
     [SerializeField] private Text NPCLine;
+    public Text GetNPCLine { get { return NPCLine; } }
     [SerializeField] private GameObject endWaitingMark;
+    public GameObject GetEndWaitingMark { get { return endWaitingMark; } }
 
     public string tmpQuestion = "";
     public bool isReadyToSkip = false;  // NPC�� ���� ��� ���� �� true�� �����
@@ -53,6 +62,12 @@ public class ConversationManager : MonoBehaviour
     private Coroutine displayCoroutine;
 
     private Queue<string> sentencesQueue = new Queue<string>();
+    private Dictionary<int, bool> revealedSecretDict = new Dictionary<int, bool>(){
+        {1, false},
+        {2, false},
+        {3, false},
+        {4, false}
+    };
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -138,7 +153,7 @@ public class ConversationManager : MonoBehaviour
     {
         if (npcRole != null)
         {
-            OnEndEditAskField(npcRole.GetResponse);
+            OnEndEditAskField(npcRole.GetResponse);            
             OnEndEditAskField(SetNullInputField);            
         }
     }
@@ -193,14 +208,11 @@ public class ConversationManager : MonoBehaviour
         else if(npcParam.currentCharacter == SpecificNPC.Character.Emma)
             NPCName.color = Color.yellow;
 
-        GetNPCRole(npcParam);
+        // GetNPCRole(npcParam);        // InvestigationManager에서 실행
         player.GetLookAtTarget(npcParam.GetAnchor());
         StartCoroutine(StartConversationCoroutine());
         AddListenersResponse();
-        Slide(true);
 
-        dialogue.SetActive(true);
-        conversationUI.SetActive(true);
 
         CursorManager.Instance.OnVisualization();
     }
@@ -208,8 +220,7 @@ public class ConversationManager : MonoBehaviour
     private IEnumerator StartConversationCoroutine()
     {
         yield return FadeUtility.Instance.SwitchCameraWithFade(screen, player, npcRole);
-        dialogue.SetActive(true);
-        conversationUI.SetActive(true);
+        // conversationUI.SetActive(true);  // 대사 다 끝나고 실행됨
         // SetAudio();
     }
 
@@ -268,9 +279,10 @@ public class ConversationManager : MonoBehaviour
             return;
         }
 
-        string emotion = "";
+          string emotion = "";
+        int pressureLevel = 0;
+        int revealedSecret = 0;
         string responseText = "";
-        string truth_status = "";
 
         try
         {
@@ -283,31 +295,43 @@ public class ConversationManager : MonoBehaviour
 
             JObject json = JObject.Parse(answer); // JSON �Ľ�
 
-            emotion = json["emotion"]?.ToString();
+            emotion = json["emotion"]?.ToString();            
+            pressureLevel = json["pressure_level"] != null ? (int)json["pressure_level"] : 0;
+            revealedSecret = json["revealed_secret"] != null ? (int)json["revealed_secret"] : 0;
             responseText = json["response"]?.ToString();
-            truth_status = json["truth_status"]?.ToString();
 
+            recommendationManager.GetResponse(responseText);
             npcRole.PlayOnomatopoeia(emotion);
 
-            if (truth_status == "True")
-            {
+            if (pressureLevel == 0)
                 NPCLine.color = Color.white;
-                player.ZoomCamera(true);
-            }
-            else if (truth_status == "Lie")
+            else if (pressureLevel == 1) NPCLine.color = Color.yellow;
+            else if (pressureLevel == 2)
             {
                 NPCLine.color = Color.red;
-                player.ZoomCamera(false);
+                if (revealedSecretDict.ContainsKey(revealedSecret) && !revealedSecretDict[revealedSecret])
+                {
+                    revealedSecretDict[revealedSecret] = true;
+                    timer.AddTime(120);
+                }                     
             }
-            else
+
+
+            /* 나중에 적용하기
+            switch (pressureLevel)
             {
-                NPCLine.color = Color.white;
-                Debug.LogError("truth_status is not True or Lie");
+                case 1: // 보통 거리
+                    player.ZoomCamera(2); break;
+                case 2: // 가까이 줌
+                    player.ZoomCamera(1); break;
+                default:    // 멀리 줌
+                    player.ZoomCamera(3); break;
             }
-            
+            */
+
             // 로컬라이제이션 할 때 주의!
-            summaryManager.GetMessages("플레이어(player) : " + tmpQuestion, 
-                npcRole.currentCharacter.ToString() + " : " + responseText.Trim());
+            // summaryManager.GetMessages("플레이어(player) : " + tmpQuestion, 
+            //     npcRole.currentCharacter.ToString() + " : " + responseText.Trim());
             logManager.AddNewLog(npcRole, tmpQuestion, responseText.Trim());
 
             if (string.IsNullOrWhiteSpace(responseText))
@@ -460,7 +484,7 @@ public class ConversationManager : MonoBehaviour
         }
     }
 
-    void FocusOnAskField()
+    public void FocusOnAskField()
     {
         inputField.Select();
         inputField.ActivateInputField(); // InputField Ȱ��ȭ
@@ -497,6 +521,11 @@ public class ConversationManager : MonoBehaviour
         return inputField.text.Length;
     }
 
+    public InputField GetAskField()
+    {
+        return inputField;
+    }
+
     // InputField �ؽ�Ʈ ��ȯ
     public string GetAskFieldText()
     {
@@ -515,12 +544,56 @@ public class ConversationManager : MonoBehaviour
 
 
 
+
+    public IEnumerator ShowText(string NPCName = "", string fullText = "", Action onFinished = null)
+    {
+        this.NPCName.text = NPCName;
+        NPCLine.text = ""; // 초기화
+
+        npcRole.PlayEmotion(fullText);
+
+        // 글자 하나씩 출력
+        foreach (char c in fullText)
+        {
+            NPCLine.text += c;
+            yield return new WaitForSeconds(0.05f);
+        }
+
+        // 모든 텍스트가 출력된 후 → 입력 대기
+        bool waitingInput = true;
+        endWaitingMark.SetActive(true); // 입력 대기 마크 활성화
+        while (waitingInput)
+        {
+            if (
+                Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame ||
+                Keyboard.current != null && (
+                    Keyboard.current.spaceKey.wasPressedThisFrame ||
+                    Keyboard.current.enterKey.wasPressedThisFrame ||
+                    Keyboard.current.numpadEnterKey.wasPressedThisFrame
+                )
+            )
+            {
+                waitingInput = false;
+            }
+
+            yield return null; // 다음 프레임까지 대기
+        }
+
+        endWaitingMark.SetActive(false); // 입력 대기 마크 비활성화
+
+        // 입력이 감지되면 다음 액션 실행
+        if (onFinished != null)
+            onFinished();
+    }
+
+
+
+
     public void Slide(bool isTalking, float fadeDuration = 1f)
     {
         SlideMove(0, isTalking, fadeDuration);
         SlideMove(1, isTalking, fadeDuration);
     }
-
 
     private void SlideMove(int index, bool isOn, float fadeDuration)
     {

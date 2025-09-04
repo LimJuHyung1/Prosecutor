@@ -6,8 +6,7 @@ public class NPCRoleInfoManager
     public string GetAudience(string npcName) => GetNPCRoleByName(npcName)?.audience;
     public string GetInformation(string npcName) => GetNPCRoleByName(npcName)?.information;
     
-    public string GetTask_1(string npcName) => GetNPCRoleByName(npcName)?.task_1;
-    public string GetTask_2(string npcName) => GetNPCRoleByName(npcName)?.task_2;
+    public string GetTask(string npcName) => GetNPCRoleByName(npcName)?.task;
     public string GetTask_final(string npcName) => GetNPCRoleByName(npcName)?.task_final;
 
     public string GetRule(string npcName) => GetNPCRoleByName(npcName)?.rule;
@@ -15,8 +14,7 @@ public class NPCRoleInfoManager
 
     public string GetConstraint(string npcName) => GetNPCRoleByName(npcName)?.constraint;
 
-    public string GetHint1(string npcName) => GetNPCRoleByName(npcName)?.hint_1;
-    public string GetHint2(string npcName) => GetNPCRoleByName(npcName)?.hint_2;
+    public string GetHint(string npcName) => GetNPCRoleByName(npcName)?.hint;
     public string GetHintFinal(string npcName) => GetNPCRoleByName(npcName)?.hint_final;
 
     public string GetFormat(string npcName) => GetNPCRoleByName(npcName)?.format;

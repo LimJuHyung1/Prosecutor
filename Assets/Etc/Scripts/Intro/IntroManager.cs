@@ -34,7 +34,9 @@ public class IntroManager : MonoBehaviour
             FirstScene,
             SecondScene,
             ThirdScene,
-            FourthScene
+            FourthScene,
+            FifthScene,
+            SixthScene
         };
         audioSource = GetComponent<AudioSource>();
 
@@ -269,7 +271,7 @@ public class IntroManager : MonoBehaviour
         line.color = Color.red;
 
         Vector3 target = john.transform.position; // 존을 중심으로 원 운동
-        StartCoroutine(FifthCamera(target, 15f, 0.1f));        
+        StartCoroutine(FifthCamera(target, 12f, 0.25f));        
     }
 
     private IEnumerator FifthCamera(Vector3 targetPos, float radius = 5f, float angularSpeed = 0.5f)
@@ -329,7 +331,7 @@ public class IntroManager : MonoBehaviour
             rb.AddForce(john.transform.forward * 2f + Vector3.up * 3f, ForceMode.Impulse);
         }
 
-        audioSource.clip = audioClips[1];
+        SetAudioClip(1);        
         audioSource.Play();
     }
 
@@ -348,6 +350,10 @@ public class IntroManager : MonoBehaviour
         john.GetComponent<Animator>().SetTrigger("SixthScene");
         yield return StartCoroutine(ShowText("작별이다, 헨리"));
         john.GetComponent<Animator>().SetBool("SixthScene2", true);
+
+        StartCoroutine(FadeUtility.Instance.FadeOut(line, 3f));
+        yield return new WaitForSeconds(3f);
+        StartCoroutine(FadeUtility.Instance.FadeIn(screen, 5f));
     }
 
 

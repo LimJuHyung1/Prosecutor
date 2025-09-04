@@ -50,16 +50,14 @@ public class NPC : MonoBehaviour
     public string GetAudience(string npcName) => roleInfoManager.GetAudience(npcName);
     public string GetInformation(string npcName) => roleInfoManager.GetInformation(npcName);
 
-    public string GetTask_1(string npcName) => roleInfoManager.GetTask_1(npcName);
-    public string GetTask_2(string npcName) => roleInfoManager.GetTask_2(npcName);
+    public string GetTask(string npcName) => roleInfoManager.GetTask(npcName);
     public string GetTask_final(string npcName) => roleInfoManager.GetTask_final(npcName);
 
     public string GetRule(string npcName) => roleInfoManager.GetRule(npcName);
     public string GetStyle(string npcName) => roleInfoManager.GetStyle(npcName);
 
     public string GetConstraint(string npcName) => roleInfoManager.GetConstraint(npcName);
-    public string GetHint1(string npcName) => roleInfoManager.GetHint1(npcName);
-    public string GetHint2(string npcName) => roleInfoManager.GetHint2(npcName);
+    public string GetHint(string npcName) => roleInfoManager.GetHint(npcName);
     public string GetHintFinal(string npcName) => roleInfoManager.GetHintFinal(npcName);
 
     public string GetFormat(string npcName) => roleInfoManager.GetFormat(npcName);
