@@ -1,15 +1,34 @@
 ﻿using Newtonsoft.Json.Linq;
+using OpenAI;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.Text.RegularExpressions;
+using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
-using OpenAI;
+
+public enum CourtRole
+{
+    Player,
+    Judge,
+    Lawyer
+}
 
 public class CourtManager : MonoBehaviour
 {
+    public CourtRole subjectRole;
+    public CourtRole targetRole;
+
+    public Camera[] cameras;
+    [SerializeField] private float zoomSpeed = 5f;   // 줌 속도 (값이 클수록 빠르게 변함)
+    [SerializeField] private float minFOV = 20f;     // 최소 줌 (가까이)
+    [SerializeField] private float maxFOV = 60f;     // 최대 줌 (멀리)
+    private Dictionary<int, Coroutine> zoomCoroutines = new Dictionary<int, Coroutine>();
+
     public Image screen;
     public GameObject conversationUI;
     public GameObject dialogue;  // ��ȭ UI    
@@ -17,8 +36,8 @@ public class CourtManager : MonoBehaviour
 
     private Button endConversationBtn;  // ��ȭ ���� ��ư
     private InputField inputField;
-    [SerializeField] private Text NPCName;
-    [SerializeField] private Text NPCLine;
+    [SerializeField] private Text nameText;
+    [SerializeField] private Text lineText;
     [SerializeField] private GameObject endWaitingMark;
 
     public string tmpQuestion = "";
@@ -42,10 +61,16 @@ public class CourtManager : MonoBehaviour
         set { interrogationStage = value; }
     }
 
+    private int totalConvictionScore = 0;
     private float duration = 1.0f;     // �̵��� �ɸ��� �ð�
 
-    public Player player;
-    [SerializeField] private Lawyer lawyer;
+    public GameObject defendant;    // 윌리엄, 엠마, 존 중 한 사람
+    public GameObject player;
+    public Judge judge;       
+    public Lawyer lawyer;
+    private GameObject target; // 줌 인/아웃 대상
+
+
     private Coroutine displayCoroutine;
 
     private Queue<string> sentencesQueue = new Queue<string>();
@@ -53,8 +78,8 @@ public class CourtManager : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        NPCName = dialogue.transform.GetChild(1).GetChild(0).GetComponent<Text>();
-        NPCLine = dialogue.transform.GetChild(1).GetChild(1).GetComponent<Text>();
+        nameText = dialogue.transform.GetChild(1).GetChild(0).GetComponent<Text>();
+        lineText = dialogue.transform.GetChild(1).GetChild(1).GetComponent<Text>();
         endWaitingMark = dialogue.transform.GetChild(1).GetChild(2).gameObject;
         endConversationBtn = conversationUI.transform.GetChild(0).GetComponent<Button>();
         inputField = conversationUI.GetComponentInChildren<InputField>(true);
@@ -112,22 +137,6 @@ public class CourtManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Player ��ũ��Ʈ���� ���� ��ȭ�ϴ� NPC�� �����ϴ� �޼���
-    /// </summary>    
-    public void GetNPCRole(Lawyer npcParam)
-    {
-        lawyer = npcParam;
-    }
-
-    /// <summary>
-    /// �������� NPC ���� (��ȭ�� ����� �� ȣ���)
-    /// </summary>
-    public void RemoveNPCRole()
-    {
-        lawyer = null;
-    }
-
 
     /// <summary>
     /// InputField���� ����Ǵ� �̺�Ʈ ������ ���
@@ -136,7 +145,8 @@ public class CourtManager : MonoBehaviour
     {
         if (lawyer != null)
         {
-            OnEndEditAskField(lawyer.GetResponse);
+            OnEndEditAskField(ShowPlayerAnswer);
+            // OnEndEditAskField(lawyer.GetResponse);
             OnEndEditAskField(SetNullInputField);
         }
     }
@@ -181,11 +191,10 @@ public class CourtManager : MonoBehaviour
     public void StartConversation()
     {
         isTalking = true;
-        NPCName.text = "";
-        NPCLine.text = "";
-        NPCName.color = lawyer.GetCurrentHairColor();
-
-        GetNPCRole(lawyer);
+        nameText.text = "";
+        lineText.text = "";
+        nameText.color = lawyer.GetCurrentHairColor();
+        
         // player.GetLookAtTarget(lawyer.GetAnchor());
         // StartCoroutine(StartConversationCoroutine());
         StartConversationCoroutine();
@@ -224,8 +233,7 @@ public class CourtManager : MonoBehaviour
         SetBlankAnswerText();
 
         CursorManager.Instance.OnVisualization();
-        isTalking = false;
-        RemoveNPCRole();
+        isTalking = false;        
     }
 
     /// <summary>
@@ -247,23 +255,49 @@ public class CourtManager : MonoBehaviour
     /// </summary>
     public void SetBlankAnswerText()
     {
-        NPCLine.text = "";
+        lineText.text = "";
     }
 
-    /// <summary>
-    /// NPC�� �亯�� �޾� ȭ�鿡 ��� (���� ������ ������ ��� ť�� ����)
-    /// </summary>
-    public void ShowAnswer(string answer)
+
+
+
+    public void ShowPlayerAnswer()
     {
-        if (lawyer == null)
+        string[] sentences = Regex.Split(GetAskFieldText(), @"(?<!(\.{2,}))(?<=[.!?])\s+");
+
+        foreach (string part in sentences)
         {
-            Debug.LogError("NPC�� �����ϴ�!");
-            return;
+            if (!string.IsNullOrWhiteSpace(part))
+            {
+                string trimmedSentence = part.Trim();
+                sentencesQueue.Enqueue(trimmedSentence);
+            }
         }
 
+        if (displayCoroutine == null)
+        {
+            displayCoroutine = StartCoroutine(DisplaySentences(CourtRole.Player, targetRole));
+        }
+
+        // 여기서 다음 캐릭터 대사 트리거
+        if (targetRole == CourtRole.Lawyer)
+        {
+            lawyer.GetResponse(tmpQuestion, false);
+            judge.GetResponse(tmpQuestion, true);
+        }
+        else if (targetRole == CourtRole.Judge)
+        {
+            judge.GetResponse(tmpQuestion, false);
+            lawyer.GetResponse(tmpQuestion, true);
+        }        
+    }
+
+    public void ShowJudgeAnswer(string answer, bool noResponse)
+    {
         string emotion = "";
-        string responseText = "";
-        string truth_status = "";
+        CourtRole tmpRole;
+        int convictionScore;
+        string responseText;
 
         try
         {
@@ -275,35 +309,70 @@ public class CourtManager : MonoBehaviour
             }
 
             JObject json = JObject.Parse(answer); // JSON �Ľ�
-            responseText = json["response"]?.ToString();
-            /*
             emotion = json["emotion"]?.ToString();
+            Enum.TryParse(json["target"]?.ToString(), true, out tmpRole);
+            convictionScore = json["convictionScore"]?.Value<int>() ?? 0;
+            totalConvictionScore += convictionScore;
             responseText = json["response"]?.ToString();
-            truth_status = json["truth_status"]?.ToString();
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"JSON 파싱 중 오류 발생: {ex.Message}");
+            Debug.Log("문제 발생한 응답: " + answer);
+            return;
+        }
 
-            lawyer.PlayOnomatopoeia(emotion);
+        if (!noResponse)
+        {
+            judge.GetComponent<Animator>().SetTrigger(emotion);
 
-            if (truth_status == "True")
-            {
-                NPCLine.color = Color.white;
-                player.ZoomCamera(true);
-            }
-            else if (truth_status == "Lie")
-            {
-                NPCLine.color = Color.red;
-                player.ZoomCamera(false);
-            }
-            else
-            {
-                NPCLine.color = Color.white;
-                Debug.LogError("truth_status is not True or Lie");
-            }
-            */
+            sentencesQueue.Clear();
 
+            // '.', '?', '!' �������� ���� �����ϵ� "..."�� ���� ó��        
+            string[] sentences = Regex.Split(responseText, @"(?<!(\.{2,}))(?<=[.!?])\s+");
+
+            foreach (string part in sentences)
+            {
+                if (!string.IsNullOrWhiteSpace(part))
+                {
+                    string trimmedSentence = part.Trim();
+                    sentencesQueue.Enqueue(trimmedSentence);
+                }
+            }
+
+            if (displayCoroutine == null)
+            {
+                displayCoroutine = StartCoroutine(DisplaySentences(CourtRole.Judge, tmpRole));
+            }
+        }
+    }
+
+    public void ShowLawyerAnswer(string answer)
+    {
+        string emotion = "";
+        CourtRole tmpRole;
+        string responseText;
+
+        try
+        {
+            // JSON 유효성 검사
+            if (!answer.TrimStart().StartsWith("{"))
+            {
+                Debug.LogWarning("응답이 JSON 형식이 아닙니다. 원본 출력: " + answer);
+                return;
+            }
+
+            JObject json = JObject.Parse(answer); // JSON �Ľ�
+            emotion = json["emotion"]?.ToString();
+            Enum.TryParse(json["target"]?.ToString(), true, out tmpRole);
+            responseText = json["response"]?.ToString();
+
+
+            // response가 없을 때도 기본값으로 채워서 끊기지 않도록
             if (string.IsNullOrWhiteSpace(responseText))
             {
-                Debug.LogWarning("response 항목이 비어 있습니다.");
-                return;
+                Debug.LogWarning("response 항목이 비어 있습니다. 기본 메시지로 대체합니다.");
+                responseText = "(대답 없음)";
             }
         }
         catch (System.Exception ex)
@@ -312,6 +381,8 @@ public class CourtManager : MonoBehaviour
             Debug.Log("문제 발생한 응답: " + answer);
             return;
         }
+
+        lawyer.GetComponent<Animator>().SetTrigger(emotion);
 
         sentencesQueue.Clear();
 
@@ -329,9 +400,13 @@ public class CourtManager : MonoBehaviour
 
         if (displayCoroutine == null)
         {
-            displayCoroutine = StartCoroutine(DisplaySentences());
+            displayCoroutine = StartCoroutine(DisplaySentences(CourtRole.Lawyer, tmpRole));
         }
     }
+
+
+
+
 
     /// <summary>
     /// ��縦 �� ���ھ� ����ϴ� �ڷ�ƾ
@@ -374,20 +449,26 @@ public class CourtManager : MonoBehaviour
     /// <summary>
     /// NPC�� �亯�� �ѹ��� �� ȭ�鿡 ���
     /// </summary>
-    private IEnumerator DisplaySentences()
+    private IEnumerator DisplaySentences(CourtRole subjectRole, CourtRole targetRole)
     {
         if (!isTalking) yield break;
 
-        switch (lawyer.name)
+        switch (subjectRole.ToString())
         {
-            case "William(Clone)":
-                NPCName.text = "윌리엄";
+            case "Player":
+                ZoomIn(0);
+                nameText.color = Color.darkRed;
+                nameText.text = "수잔";
                 break;
-            case "Emma(Clone)":
-                NPCName.text = "엠마";
+            case "Judge":
+                ZoomIn(1);
+                nameText.color = Color.gray;
+                nameText.text = "판사";
                 break;
-            case "John(Clone)":
-                NPCName.text = "존";
+            case "Lawyer":
+                ZoomIn(2);
+                nameText.color = Color.cyan;
+                nameText.text = "변호사";
                 break;
         }
 
@@ -397,9 +478,7 @@ public class CourtManager : MonoBehaviour
             isAbleToGoNext = false;
             IsReadyToSkip = true;
 
-            ChatMessage message = new ChatMessage { Content = sentence };
-
-            yield return StartCoroutine(ShowLine(GetNPCAnswer(), sentence));
+            yield return StartCoroutine(ShowLine(GetLineText(), sentence));
 
             yield return new WaitUntil(() => isAbleToGoNext);
 
@@ -416,12 +495,32 @@ public class CourtManager : MonoBehaviour
         }
 
         IsReadyToSkip = false;
+        ChangeIsSkipping(true);
+        displayCoroutine = null;
+
+        if (targetRole == CourtRole.Player)
+        {
+            SetActiveEndConversationButton(true);
+            SetInteractableAskField(true);
+            FocusOnAskField();
+        }
+    }
+
+    private IEnumerator SetPlayerTurn()
+    {
+        // yield return new WaitUntil(() => isAbleToGoNext);
+
+        IsReadyToSkip = false;
         SetActiveEndConversationButton(true);
         SetInteractableAskField(true);
         ChangeIsSkipping(true);
         FocusOnAskField();
         displayCoroutine = null;
+
+        yield return null;
     }
+
+
 
     public void SetActiveEndConversationButton(bool state)
     {
@@ -446,7 +545,7 @@ public class CourtManager : MonoBehaviour
 
         if (isTalking)
         {
-            NPCLine.color = Color.white;
+            lineText.color = Color.white;
         }
     }
 
@@ -457,9 +556,9 @@ public class CourtManager : MonoBehaviour
     }
 
     // NPC �亯 ��ȯ
-    public Text GetNPCAnswer()
+    public Text GetLineText()
     {
-        return NPCLine;
+        return lineText;
     }
 
     /// <summary>
@@ -503,6 +602,38 @@ public class CourtManager : MonoBehaviour
 
 
 
+    
+    public void SetSubjectRole(int index)
+    {
+        if(index == 0) subjectRole = CourtRole.Player;
+        else if(index == 1) subjectRole = CourtRole.Judge;
+        else if(index == 2) subjectRole = CourtRole.Lawyer;
+        else
+        {
+            Debug.LogError("SetSubjectRole: index out of range");
+            return;
+        }        
+    }
+
+    public void SetTargetRole(int index)
+    {
+        if (index == 0) targetRole = CourtRole.Player;
+        else if (index == 1) targetRole = CourtRole.Judge;
+        else if (index == 2) targetRole = CourtRole.Lawyer;
+        else
+        {
+            Debug.LogError("SetSubjectRole: index out of range");
+            return;
+        }    
+    }
+
+
+
+
+
+
+
+
 
 
     public void Slide(bool isTalking, float fadeDuration = 1f)
@@ -540,4 +671,64 @@ public class CourtManager : MonoBehaviour
 
         rect.anchoredPosition = endPos;
     }
+
+
+
+
+
+
+    private void SwitchCamera(int index)
+    {
+        if (lineText != null)
+            lineText.text = "";
+
+        for (int i = 0; i < cameras.Length; i++)
+        {
+            cameras[i].gameObject.SetActive(false);
+        }
+
+        if (index != -1)
+            cameras[index].gameObject.SetActive(true);
+    }
+
+    // 줌 인 호출
+    // 줌 요청 (양수 = 줌 아웃, 음수 = 줌 인)
+    public void Zoom(int index, float amount)
+    {
+        if (index < 0 || index >= cameras.Length) return;
+
+        SwitchCamera(index);
+
+        float targetFOV = Mathf.Clamp(cameras[index].fieldOfView + amount, minFOV, maxFOV);
+
+        // 기존 코루틴 중지
+        if (zoomCoroutines.ContainsKey(index) && zoomCoroutines[index] != null)
+            StopCoroutine(zoomCoroutines[index]);
+
+
+        // 새 코루틴 실행
+        zoomCoroutines[index] = StartCoroutine(SmoothZoom(index, targetFOV));
+    }
+
+    private IEnumerator SmoothZoom(int index, float targetFOV)
+    {
+        Camera cam = cameras[index];
+        
+        while (Mathf.Abs(cam.fieldOfView - targetFOV) > 0.05f)
+        {            
+            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, Time.deltaTime * zoomSpeed);
+            yield return null;
+        }
+        cam.fieldOfView = targetFOV; // 최종 보정
+        
+        for(int i = 0; i < cameras.Length; i++)
+        {
+            if (i != index)
+                cameras[i].fieldOfView = 60f;
+        }
+    }
+
+    // 편의 함수
+    public void ZoomIn(int index) => Zoom(index, -10f);
+    public void ZoomOut(int index) => Zoom(index, 10f);
 }

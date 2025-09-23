@@ -1,30 +1,35 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using UnityEngine.Localization.Settings;
 
 public class InvestigationManager : MonoBehaviour
 {
     private AudioSource[] audioSources;
 
-    [SerializeField] private Transform seatTransform;  // ¿ëÀÇÀÚ°¡ ¾ÉÀ» À§Ä¡
+    [SerializeField] private Transform seatTransform;  // ìš©ì˜ìê°€ ì•‰ì„ ìœ„ì¹˜
     [SerializeField] private SpecificNPC currentNPC;
 
-    [SerializeField] private GameObject[] suspectPrefabs = new GameObject[3];    // Resources Æú´õÀÇ ¿ëÀÇÀÚ ÇÁ¸®ÆÕ ¹è¿­
-    private readonly string[] suspectNames = new string[] { "William", "Emma", "John" };    // ¿ëÀÇÀÚ ÇÁ¸®ÆÕ ÀÌ¸§µé
+    [SerializeField] private GameObject[] suspectPrefabs = new GameObject[3];    // Resources í´ë”ì˜ ìš©ì˜ì í”„ë¦¬íŒ¹ ë°°ì—´
+    private readonly string[] suspectNames = new string[] { "William", "Emma", "John" };    // ìš©ì˜ì í”„ë¦¬íŒ¹ ì´ë¦„ë“¤
     
-    public AudioClip[] audioClips; // 0 - ¹® ¿©´Â ¼Ò¸®
+    public AudioClip[] audioClips; // 0 - ë¬¸ ì—¬ëŠ” ì†Œë¦¬
     public AudioClip[] npcVoices;
 
     public Animator npcAnimator;
-    public RuntimeAnimatorController[] controllers; // 0 - ´ëÈ­ ½Ã, 1 - µ¶¹é ½Ã
+    public RuntimeAnimatorController[] controllers; // 0 - ëŒ€í™” ì‹œ, 1 - ë…ë°± ì‹œ
     public ConversationManager conversationManager;
     public Image screen;
-    public Image tutorial;
 
+    public Button[] conversationUIButtons;
+
+    public GameObject tutorial;
     public GameObject data;
+    public Image demoEnding;
+    [SerializeField] private Button[] dataButtons = new Button[3];
     private Button startInvestigationButton;
     private Image profilePage;
     private Image newsPage;
@@ -32,7 +37,10 @@ public class InvestigationManager : MonoBehaviour
     
     public Timer timer;
 
+    private bool isChanging;
     private bool[] checkData = new bool[3];
+    private string localeLine1;
+    private string localeLine2;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -40,16 +48,21 @@ public class InvestigationManager : MonoBehaviour
         audioSources = GetComponents<AudioSource>();
 
         screen.gameObject.SetActive(true);
-        SetActiveTutorial(false);
-        timer.StopTimer();
+        timer.PauseTimer();  // StopTimer() ëŒ€ì‹  PauseTimer()
         timer.gameObject.SetActive(false);
-        
+
+        dataButtons[0] = data.transform.GetChild(0).GetComponent<Button>();
+        dataButtons[1] = data.transform.GetChild(1).GetComponent<Button>();
+        dataButtons[2] = data.transform.GetChild(2).GetComponent<Button>();
+        startInvestigationButton = data.transform.GetChild(3).GetComponent<Button>();
         profilePage = data.transform.GetChild(4).GetComponent<Image>();
         newsPage = data.transform.GetChild(5).GetComponent<Image>();
         crimeScenePage = data.transform.GetChild(6).GetComponent<Image>();
-        startInvestigationButton = data.transform.GetChild(3).GetComponent<Button>();
-        data.gameObject.SetActive(false);
+        
+        data.gameObject.SetActive(false);        
+        tutorial.SetActive(false);
         startInvestigationButton.gameObject.SetActive(false);
+        demoEnding.gameObject.SetActive(false);
 
         for (int i = 0; i < checkData.Length; i++)
         {
@@ -57,14 +70,15 @@ public class InvestigationManager : MonoBehaviour
         }
 
         LoadPrefabsFromResources();
-        ClickSuspect(0);        
+        ClickSuspect(0);
+        // FirstScene();
 
-        // ½ÇÁ¦ ÇÒ¶§´Â ¾Æ·¡ ÄÚµåµé ´Ù Áö¿ì±â
-        conversationManager.Slide(true);
-        conversationManager.dialogue.SetActive(true);
-        conversationManager.StartConversation(currentNPC);
-        StartInterrogation();        
-        SetNPCAnimator(0);
+        // ì‹¤ì œ í• ë•ŒëŠ” ì•„ë˜ ì½”ë“œë“¤ ë‹¤ ì§€ìš°ê¸°
+        // conversationManager.Slide(true);
+        // conversationManager.dialogue.SetActive(true);
+        // conversationManager.StartConversation(currentNPC);
+        // StartInterrogation();        
+        // SetNPCAnimator(0);
     }
 
     private void LoadPrefabsFromResources()
@@ -75,18 +89,18 @@ public class InvestigationManager : MonoBehaviour
 
             if (suspectPrefabs[i] == null)
             {
-                Debug.LogError($"ÇÁ¸®ÆÕÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù: {suspectNames[i]}");
+                Debug.LogError($"í”„ë¦¬íŒ¹ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {suspectNames[i]}");
             }
         }
     }
 
     /// <summary>
-    /// ¿ëÀÇÀÚ ¹öÆ° Å¬¸¯ ½Ã È£ÃâµÇ´Â ¸Ş¼­µåÀÔ´Ï´Ù.
+    /// ìš©ì˜ì ë²„íŠ¼ í´ë¦­ ì‹œ í˜¸ì¶œë˜ëŠ” ë©”ì„œë“œì…ë‹ˆë‹¤.
     /// </summary>
-    /// <param name="index">Å¬¸¯µÈ ¿ëÀÇÀÚÀÇ ÀÎµ¦½º</param>
+    /// <param name="index">í´ë¦­ëœ ìš©ì˜ìì˜ ì¸ë±ìŠ¤</param>
     /// <remarks>
-    /// ¼±ÅÃµÈ ¿ëÀÇÀÚÀÇ Á¤º¸¸¦ ÇÁ·ÎÇÊ ¸Å´ÏÀú¸¦ ÅëÇØ UI¿¡ Ç¥½ÃÇÏ°í,
-    /// ¿ëÀÇÀÚ ¼±ÅÃ ¹öÆ° ÆĞ³ÎÀ» ºñÈ°¼ºÈ­ÇÕ´Ï´Ù.
+    /// ì„ íƒëœ ìš©ì˜ìì˜ ì •ë³´ë¥¼ í”„ë¡œí•„ ë§¤ë‹ˆì €ë¥¼ í†µí•´ UIì— í‘œì‹œí•˜ê³ ,
+    /// ìš©ì˜ì ì„ íƒ ë²„íŠ¼ íŒ¨ë„ì„ ë¹„í™œì„±í™”í•©ë‹ˆë‹¤.
     /// </remarks>
     public void ClickSuspect(int index)
     {
@@ -94,13 +108,13 @@ public class InvestigationManager : MonoBehaviour
         {
             if (suspectPrefabs[index] == null)
             {
-                Debug.LogError($"¿ëÀÇÀÚ ÇÁ¸®ÆÕÀÌ nullÀÔ´Ï´Ù: {suspectNames[index]}");
+                Debug.LogError($"ìš©ì˜ì í”„ë¦¬íŒ¹ì´ nullì…ë‹ˆë‹¤: {suspectNames[index]}");
                 return;
             }
 
             if (seatTransform == null)
             {
-                Debug.LogError("seatTransformÀÌ ÇÒ´çµÇÁö ¾Ê¾Ò½À´Ï´Ù.");
+                Debug.LogError("seatTransformì´ í• ë‹¹ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.");
                 return;
             }
 
@@ -108,7 +122,7 @@ public class InvestigationManager : MonoBehaviour
 
             if (instantiatedObject == null)
             {
-                Debug.LogError("ÇÁ¸®ÆÕ »ı¼º ½ÇÆĞ");
+                Debug.LogError("í”„ë¦¬íŒ¹ ìƒì„± ì‹¤íŒ¨");
                 return;
             }
 
@@ -119,7 +133,7 @@ public class InvestigationManager : MonoBehaviour
 
             if (currentNPC == null)
             {
-                Debug.LogError($"SpecificNPC ÄÄÆ÷³ÍÆ®¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù: {instantiatedObject.name}");
+                Debug.LogError($"SpecificNPC ì»´í¬ë„ŒíŠ¸ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {instantiatedObject.name}");
                 return;
             }
 
@@ -131,17 +145,32 @@ public class InvestigationManager : MonoBehaviour
 
     public void StartInterrogation()
     {
-        timer.gameObject.SetActive(true);
-        timer.StartTimer();
+        // timer.gameObject.SetActive(true);
+        // conversationManager.conversationUI.SetActive(true);
+        // SetActiveGuide(false);
+
+        timer.startAtRuntime = true;
+        timer.StartTimer(false);
+        if(timer.gameObject.activeSelf == false)
+            timer.gameObject.SetActive(true);
         conversationManager.conversationUI.SetActive(true);
-        SetActiveTutorial(false);
         AudioManager.Instance.PlayInterrogationAudio();
+
+        for (int i = 0; i < conversationUIButtons.Length; i++)
+        {
+            conversationUIButtons[i].interactable = true;
+        }
+        conversationManager.SetInteractableAskField(true);
 
         // conversationManager.StartConversation(currentNPC);
     }
 
+    /// <summary>
+    /// ë°ëª¨ë¡œ ì•ˆ í• êº¼ë©´ ì£¼ì„ í’€ê¸°
+    /// </summary>
     public void EndInterrogation()
     {
+        /*
         timer.StopTimer();
         timer.gameObject.SetActive(false);
 
@@ -150,7 +179,7 @@ public class InvestigationManager : MonoBehaviour
         conversationManager.EndConversation();
         conversationManager.SetInteractableAskField(true);
 
-        // currentNPC °ÔÀÓ ¿ÀºêÁ§Æ® »èÁ¦
+        // currentNPC ê²Œì„ ì˜¤ë¸Œì íŠ¸ ì‚­ì œ
         if (currentNPC != null)
         {
             Destroy(currentNPC.gameObject);
@@ -158,6 +187,9 @@ public class InvestigationManager : MonoBehaviour
         }
 
         // summaryManager.Summary();
+        */
+        screen.gameObject.SetActive(true);
+        ShowDemoEnding();
     }
 
 
@@ -174,22 +206,52 @@ public class InvestigationManager : MonoBehaviour
         conversationManager.Slide(true);
         conversationManager.dialogue.SetActive(true);
 
-        yield return new WaitForSeconds(3f);
-        yield return StartCoroutine(FadeUtility.Instance.FadeOut(screen, 1f));        
+        var currentLocale = LocalizationSettings.SelectedLocale;
 
-        conversationManager.GetNPCName.color = Color.blue;        
+        yield return new WaitForSeconds(2f);
+        yield return StartCoroutine(FadeUtility.Instance.FadeOut(screen, 1f));
+
+        conversationManager.GetNPCName.color = Color.blue;
 
         yield return new WaitForSeconds(3f);
-        
+
+        string speakerName = "";
+
+        if (currentLocale.Identifier.Code == "en")
+        {
+            speakerName = "William";
+            localeLine1 = "I met Henry through my lover, Emma.";
+            localeLine2 = "At first, his hospital seemed to be running smoothly on the surface.";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            speakerName = "William";
+            localeLine1 = "Ho conosciuto Henry grazie alla mia compagna, Emma.";
+            localeLine2 = "Allâ€™inizio il suo ospedale sembrava funzionare bene, almeno in apparenza.";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            speakerName = "ã‚¦ã‚£ãƒªã‚¢ãƒ ";
+            localeLine1 = "ãƒ˜ãƒ³ãƒªãƒ¼ã¨ã¯æ‹äººã®ã‚¨ãƒã®ç´¹ä»‹ã§çŸ¥ã‚Šåˆã„ã¾ã—ãŸã€‚";
+            localeLine2 = "æœ€åˆã¯å½¼ã®ç—…é™¢ã‚‚è¡¨é¢ä¸Šã¯\né †èª¿ã«é‹å–¶ã•ã‚Œã¦ã„ã‚‹ã‚ˆã†ã«è¦‹ãˆã¾ã—ãŸã€‚";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            speakerName = "ìœŒë¦¬ì—„";
+            localeLine1 = "í—¨ë¦¬ëŠ” ì œ ì—°ì¸ ì— ë§ˆì˜ ì†Œê°œë¡œ ì•Œê²Œ ëœ ì‚¬ëŒì…ë‹ˆë‹¤.";
+            localeLine2 = "ì²˜ìŒì—” ê·¸ì˜ ë³‘ì›ì´ ê²‰ë³´ê¸°ì—ëŠ” ì•ˆì •ì ìœ¼ë¡œ ì˜ ìš´ì˜ë˜ê³  ìˆëŠ” ë“¯ ë³´ì˜€ì£ .";
+        }
+
+        // ê³µí†µ ì¶œë ¥ ë¶€ë¶„ (ì¤‘ë³µ ì œê±°)
         SetNPCVocie(0);
         audioSources[1].Play();
-        npcAnimator.SetTrigger("Netural");
-        yield return StartCoroutine(ShowText("Àª¸®¾ö", "Çî¸®´Â Á¦ ¿¬ÀÎ ¿¥¸¶ÀÇ ¼Ò°³·Î ¾Ë°Ô µÈ »ç¶÷ÀÔ´Ï´Ù."));
+        npcAnimator.SetTrigger("Neutral"); // "Netural" ì˜¤íƒ€ ìˆ˜ì •
+        yield return StartCoroutine(ShowText(speakerName, localeLine1));
 
         SetNPCVocie(1);
         audioSources[1].Play();
         npcAnimator.SetTrigger("Joy");
-        yield return StartCoroutine(ShowText("Àª¸®¾ö", "Ã³À½¿£ ±×ÀÇ º´¿øÀÌ °Ñº¸±â¿¡´Â ¾ÈÁ¤ÀûÀ¸·Î Àß ¿î¿µµÇ°í ÀÖ´Â µí º¸¿´ÁÒ.", SecondScene));
+        yield return StartCoroutine(ShowText(speakerName, localeLine2, SecondScene));
     }
 
     public void SecondScene()
@@ -200,16 +262,45 @@ public class InvestigationManager : MonoBehaviour
     private IEnumerator SecondCoroutine()
     {
         conversationManager.GetNPCName.color = Color.blue;
-        
+
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        string speakerName = "";
+
+        if (currentLocale.Identifier.Code == "en")
+        {
+            speakerName = "William";
+            localeLine1 = "Since it was also Emmaâ€™s recommendation, I decided to invest without much doubt.";
+            localeLine2 = "But while checking the finances myself, I discovered a shocking truth.";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            speakerName = "William";
+            localeLine1 = "Essendo stata anche una raccomandazione di Emma, ho deciso di investire senza grandi dubbi.";
+            localeLine2 = "Ma controllando direttamente le finanze, ho scoperto una veritÃ  sconvolgente.";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            speakerName = "ã‚¦ã‚£ãƒªã‚¢ãƒ ";
+            localeLine1 = "ã‚¨ãƒã®å‹§ã‚ã§ã‚‚ã‚ã£ãŸã®ã§ã€å¤§ããªç–‘ã„ã‚‚ãªãæŠ•è³‡ã‚’æ±ºã‚ã¾ã—ãŸã€‚";
+            localeLine2 = "ã—ã‹ã—è‡ªåˆ†ã§è²¡å‹™ã‚’ç¢ºèªã—ã¦ã„ã‚‹ã†ã¡ã«ã€è¡æ’ƒçš„ãªäº‹å®Ÿã‚’çŸ¥ã£ãŸã®ã§ã™ã€‚";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            speakerName = "ìœŒë¦¬ì—„";
+            localeLine1 = "ì— ë§ˆì˜ ì¶”ì²œì´ê¸°ë„ í•´ì„œ, ì €ëŠ” í° ì˜ì‹¬ ì—†ì´ íˆ¬ìë¥¼ ê²°ì •í–ˆìŠµë‹ˆë‹¤.";
+            localeLine2 = "í•˜ì§€ë§Œ ì¬ì •ì„ ì§ì ‘ í™•ì¸í•˜ë˜ ì¤‘ ì¶©ê²©ì ì¸ ì‚¬ì‹¤ì„ ì•Œê²Œ ë˜ì—ˆìŠµë‹ˆë‹¤.";
+        }
+
+        // ê³µí†µ ì¶œë ¥ ë¶€ë¶„ (ì¤‘ë³µ ì œê±°)
         SetNPCVocie(2);
         audioSources[1].Play();
-        npcAnimator.SetTrigger("Netural");
-        yield return StartCoroutine(ShowText("Àª¸®¾ö", "¿¥¸¶ÀÇ ÃßÃµÀÌ±âµµ ÇØ¼­, Àú´Â Å« ÀÇ½É ¾øÀÌ ÅõÀÚ¸¦ °áÁ¤Çß½À´Ï´Ù."));
-        
+        npcAnimator.SetTrigger("Neutral"); // "Netural" â†’ "Neutral" ì˜¤íƒ€ ìˆ˜ì •
+        yield return StartCoroutine(ShowText(speakerName, localeLine1));
+
         SetNPCVocie(3);
         audioSources[1].Play();
         npcAnimator.SetTrigger("Surprise");
-        yield return StartCoroutine(ShowText("Àª¸®¾ö", "ÇÏÁö¸¸ ÀçÁ¤À» Á÷Á¢ È®ÀÎÇÏ´ø Áß Ãæ°İÀûÀÎ »ç½ÇÀ» ¾Ë°Ô µÇ¾ú½À´Ï´Ù.", ThirdScene));
+        yield return StartCoroutine(ShowText(speakerName, localeLine2, ThirdScene));
     }
 
     public void ThirdScene()
@@ -220,16 +311,45 @@ public class InvestigationManager : MonoBehaviour
     private IEnumerator ThirdCoroutine()
     {
         conversationManager.GetNPCName.color = Color.blue;
-        
+
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        string speakerName = "";
+
+        if (currentLocale.Identifier.Code == "en")
+        {
+            speakerName = "William";
+            localeLine1 = "Henry inflated profits through accounting fraud and covered up medical accidents.";
+            localeLine2 = "I demanded to withdraw my investment, but Henry instead filed a lawsuit against me.";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            speakerName = "William";
+            localeLine1 = "Henry gonfiava i profitti con il falso in bilancio e occultava incidenti medici.";
+            localeLine2 = "Ho chiesto di ritirare il mio investimento, ma Henry ha intentato una causa contro di me.";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            speakerName = "ã‚¦ã‚£ãƒªã‚¢ãƒ ";
+            localeLine1 = "ãƒ˜ãƒ³ãƒªãƒ¼ã¯ç²‰é£¾æ±ºç®—ã§åˆ©ç›Šã‚’æ°´å¢—ã—ã—ã€åŒ»ç™‚äº‹æ•…ã‚’éš è”½ã—ã¦ã„ã¾ã—ãŸã€‚";
+            localeLine2 = "ç§ã¯æŠ•è³‡ã®æ’¤å›ã‚’æ±‚ã‚ã¾ã—ãŸãŒã€ãƒ˜ãƒ³ãƒªãƒ¼ã¯é€†ã«ç§ã‚’ç›¸æ‰‹å–ã£ã¦è¨´è¨Ÿã‚’èµ·ã“ã—ãŸã®ã§ã™ã€‚";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            speakerName = "ìœŒë¦¬ì—„";
+            localeLine1 = "í—¨ë¦¬ëŠ” ë¶„ì‹íšŒê³„ë¥¼ í†µí•´ ìˆ˜ìµì„ ë¶€í’€ë¦¬ê³ , ì˜ë£Œì‚¬ê³ ë¥¼ ì€íí•˜ê³  ìˆì—ˆìŠµë‹ˆë‹¤.";
+            localeLine2 = "ì €ëŠ” íˆ¬ì ì² íšŒë¥¼ ìš”êµ¬í–ˆì§€ë§Œ, í—¨ë¦¬ëŠ” ì˜¤íˆë ¤ ì €ë¥¼ ìƒëŒ€ë¡œ ì†Œì†¡ì„ ì œê¸°í–ˆìŠµë‹ˆë‹¤.";
+        }
+
+        // ê³µí†µ ì¶œë ¥ ë¶€ë¶„
         SetNPCVocie(4);
         audioSources[1].Play();
         npcAnimator.SetTrigger("Anger");
-        yield return StartCoroutine(ShowText("Àª¸®¾ö", "Çî¸®´Â ºĞ½ÄÈ¸°è¸¦ ÅëÇØ ¼öÀÍÀ» ºÎÇ®¸®°í, ÀÇ·á»ç°í¸¦ ÀºÆóÇÏ°í ÀÖ¾ú½À´Ï´Ù."));
-        
+        yield return StartCoroutine(ShowText(speakerName, localeLine1));
+
         SetNPCVocie(5);
         audioSources[1].Play();
         npcAnimator.SetTrigger("Fear");
-        yield return StartCoroutine(ShowText("Àª¸®¾ö", "Àú´Â ÅõÀÚ Ã¶È¸¸¦ ¿ä±¸ÇßÁö¸¸, Çî¸®´Â ¿ÀÈ÷·Á Àú¸¦ »ó´ë·Î ¼Ò¼ÛÀ» Á¦±âÇß½À´Ï´Ù.", FourthScene));
+        yield return StartCoroutine(ShowText(speakerName, localeLine2, FourthScene));
     }
 
     public void FourthScene()
@@ -240,16 +360,45 @@ public class InvestigationManager : MonoBehaviour
     private IEnumerator FourthCoroutine()
     {
         conversationManager.GetNPCName.color = Color.blue;
-        
+
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        string speakerName = "";
+
+        if (currentLocale.Identifier.Code == "en")
+        {
+            speakerName = "William";
+            localeLine1 = "But in the end, that lawsuit turned out to be meaninglessâ€¦";
+            localeLine2 = "While preparing for the case, I heard the news that Henry had died.";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            speakerName = "William";
+            localeLine1 = "Ma alla fine quella causa si Ã¨ rivelata priva di significatoâ€¦";
+            localeLine2 = "Durante i preparativi per il processo, ho saputo della morte di Henry.";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            speakerName = "ã‚¦ã‚£ãƒªã‚¢ãƒ ";
+            localeLine1 = "ã—ã‹ã—ãã®è¨´è¨Ÿã¯çµå±€ã€æ„å‘³ã‚’å¤±ã£ã¦ã—ã¾ã£ãŸã®ã§ã™â€¦";
+            localeLine2 = "è¨´è¨Ÿã®æº–å‚™ã‚’ã—ã¦ã„ã‚‹æœ€ä¸­ã«ã€ãƒ˜ãƒ³ãƒªãƒ¼ãŒæ­»äº¡ã—ãŸã¨ã„ã†çŸ¥ã‚‰ã›ã‚’èã„ãŸã‹ã‚‰ã§ã™ã€‚";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            speakerName = "ìœŒë¦¬ì—„";
+            localeLine1 = "ê·¸ëŸ¬ë‚˜ ê·¸ ì†Œì†¡ì€ ê²°êµ­ ì˜ë¯¸ê°€ ì—†ì–´ì§€ê³  ë§ì•˜ì£ â€¦";
+            localeLine2 = "ì†Œì†¡ ì¤€ë¹„ë¥¼ í•˜ë˜ ì¤‘, í—¨ë¦¬ê°€ ì‚¬ë§í–ˆë‹¤ëŠ” ì†Œì‹ì„ ë“£ê²Œ ë˜ì—ˆìœ¼ë‹ˆê¹Œìš”.";
+        }
+
+        // ê³µí†µ ì¶œë ¥ ë¶€ë¶„
         SetNPCVocie(6);
         audioSources[1].Play();
         npcAnimator.SetTrigger("Sadness");
-        yield return StartCoroutine(ShowText("Àª¸®¾ö", "±×·¯³ª ±× ¼Ò¼ÛÀº °á±¹ ÀÇ¹Ì°¡ ¾ø¾îÁö°í ¸»¾ÒÁÒ¡¦"));
+        yield return StartCoroutine(ShowText(speakerName, localeLine1));
 
         SetNPCVocie(7);
         audioSources[1].Play();
         npcAnimator.SetTrigger("Disgust");
-        yield return StartCoroutine(ShowText("Àª¸®¾ö", "¼Ò¼Û ÁØºñ¸¦ ÇÏ´ø Áß, Çî¸®°¡ »ç¸ÁÇß´Ù´Â ¼Ò½ÄÀ» µè°Ô µÇ¾úÀ¸´Ï±î¿ä.", LastScene));
+        yield return StartCoroutine(ShowText(speakerName, localeLine2, LastScene));
     }
 
     public void LastScene()
@@ -262,9 +411,37 @@ public class InvestigationManager : MonoBehaviour
         conversationManager.GetNPCName.color = Color.blue;
         SetNPCVocie(8);
         audioSources[1].Play();
-        npcAnimator.SetTrigger("Netural");
-        yield return StartCoroutine
-            (ShowText("Àª¸®¾ö", "Àú´Â ±×¸¦ Á×ÀÌÁö ¾Ê¾Ò½À´Ï´Ù. Á¦°¡ ¾Ë°í ÀÖ´Â °Ç ÀüºÎ ¸»¾¸µå·È½À´Ï´Ù.", () => SetActiveTutorial(true)));
+        npcAnimator.SetTrigger("Neutral"); // "Netural" â†’ "Neutral" ì˜¤íƒ€ ìˆ˜ì •
+
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        string speakerName = "";
+
+        if (currentLocale.Identifier.Code == "en")
+        {
+            speakerName = "William";
+            localeLine1 = "I did not kill him. Iâ€™ve told you everything I know.";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            speakerName = "William";
+            localeLine1 = "Non lâ€™ho ucciso io. Vi ho detto tutto quello che so.";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            speakerName = "ã‚¦ã‚£ãƒªã‚¢ãƒ ";
+            localeLine1 = "ç§ãŒå½¼ã‚’æ®ºã—ãŸã®ã§ã¯ã‚ã‚Šã¾ã›ã‚“ã€‚çŸ¥ã£ã¦ã„ã‚‹ã“ã¨ã¯ã™ã¹ã¦ãŠè©±ã—ã—ã¾ã—ãŸã€‚";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            speakerName = "ìœŒë¦¬ì—„";
+            localeLine1 = "ì €ëŠ” ê·¸ë¥¼ ì£½ì´ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤. ì œê°€ ì•Œê³  ìˆëŠ” ê±´ ì „ë¶€ ë§ì”€ë“œë ¸ìŠµë‹ˆë‹¤.";
+        }
+
+        // ê³µí†µ ì¶œë ¥ ë¶€ë¶„
+        yield return StartCoroutine(
+            ShowText(speakerName, localeLine1, () => SetActiveData(true))
+        );
+
         conversationManager.StartConversation(currentNPC);
         SetNPCAnimator(0);
     }
@@ -291,20 +468,20 @@ public class InvestigationManager : MonoBehaviour
     public IEnumerator ShowText(string NPCName = "", string fullText = "", Action onFinished = null)
     {
         conversationManager.GetNPCName.text = NPCName;
-        conversationManager.GetNPCLine.text = ""; // ÃÊ±âÈ­
+        conversationManager.GetNPCLine.text = ""; // ì´ˆê¸°í™”
 
         currentNPC.PlayEmotion(fullText);
 
-        // ±ÛÀÚ ÇÏ³ª¾¿ Ãâ·Â
+        // ê¸€ì í•˜ë‚˜ì”© ì¶œë ¥
         foreach (char c in fullText)
         {
             conversationManager.GetNPCLine.text += c;
             yield return new WaitForSeconds(0.05f);
         }
 
-        // ¸ğµç ÅØ½ºÆ®°¡ Ãâ·ÂµÈ ÈÄ ¡æ ÀÔ·Â ´ë±â
+        // ëª¨ë“  í…ìŠ¤íŠ¸ê°€ ì¶œë ¥ëœ í›„ â†’ ì…ë ¥ ëŒ€ê¸°
         bool waitingInput = true;
-        conversationManager.GetEndWaitingMark.SetActive(true); // ÀÔ·Â ´ë±â ¸¶Å© È°¼ºÈ­
+        conversationManager.GetEndWaitingMark.SetActive(true); // ì…ë ¥ ëŒ€ê¸° ë§ˆí¬ í™œì„±í™”
         while (waitingInput)
         {
             if (
@@ -319,34 +496,75 @@ public class InvestigationManager : MonoBehaviour
                 waitingInput = false;
             }
 
-            yield return null; // ´ÙÀ½ ÇÁ·¹ÀÓ±îÁö ´ë±â
+            yield return null; // ë‹¤ìŒ í”„ë ˆì„ê¹Œì§€ ëŒ€ê¸°
         }
 
-        conversationManager.GetEndWaitingMark.SetActive(false); // ÀÔ·Â ´ë±â ¸¶Å© ºñÈ°¼ºÈ­
+        conversationManager.GetEndWaitingMark.SetActive(false); // ì…ë ¥ ëŒ€ê¸° ë§ˆí¬ ë¹„í™œì„±í™”
 
-        // ÀÔ·ÂÀÌ °¨ÁöµÇ¸é ´ÙÀ½ ¾×¼Ç ½ÇÇà
+        // ì…ë ¥ì´ ê°ì§€ë˜ë©´ ë‹¤ìŒ ì•¡ì…˜ ì‹¤í–‰
         if (onFinished != null)
             onFinished();
     }
 
 
 
+    public void SetActiveTutorial(bool state)
+    {                
 
-    public void SetActiveTutorial(bool isActive)
+        if (state)
+        {
+            if (timer.gameObject.activeSelf == false)
+            {
+                timer.gameObject.SetActive(true);
+                StartCoroutine(PauseTimer());
+            }
+            timer.PauseTimer();
+
+            for (int i = 0; i < conversationUIButtons.Length; i++)
+            {
+                conversationUIButtons[i].interactable = false;
+            }
+            conversationManager.SetInteractableAskField(false);
+        }            
+        else
+            timer.StartTimer(false);
+        
+        conversationManager.SetActiveConversationUI(state);
+        tutorial.gameObject.SetActive(state);
+    }
+
+    public void StartTimer(bool state)
     {
-        tutorial.gameObject.SetActive(isActive);
+        timer.StartTimer(state);
+    }
+
+    public IEnumerator PauseTimer()
+    {
+        yield return new WaitForSeconds(0.5f);
+        timer.PauseTimer();
     }
 
     public void SetActiveData(bool state)
-    {
+    {        
         data.gameObject.SetActive(state);
+
+        if (state)
+        {
+            ChangeDataButtonColor(0, Color.white);
+            ChangeDataButtonColor(1, Color.white);
+            ChangeDataButtonColor(2, Color.white);
+
+            StartCoroutine(PauseTimer());
+        }                       
     }
 
     public void SetActiveProfilePage(bool state)
     {
-        profilePage.gameObject.SetActive(state);
+        profilePage.gameObject.SetActive(state);               
         SetCheckData(0);
         CheckData();
+
+        ChangeDataButtonColor(0, Color.darkBlue);
     }
 
     public void SetActiveNewsPage(bool state)
@@ -354,6 +572,8 @@ public class InvestigationManager : MonoBehaviour
         newsPage.gameObject.SetActive(state);
         SetCheckData(1);
         CheckData();
+
+        ChangeDataButtonColor(1, Color.darkBlue);
     }
 
     public void SetActiveCrimeScenePage(bool state)
@@ -361,6 +581,8 @@ public class InvestigationManager : MonoBehaviour
         crimeScenePage.gameObject.SetActive(state);
         SetCheckData(2);
         CheckData();
+
+        ChangeDataButtonColor(2, Color.darkBlue);
     }
 
     public void SetActiveStartInvestigationButton(bool state)
@@ -382,5 +604,63 @@ public class InvestigationManager : MonoBehaviour
         }
 
         SetActiveStartInvestigationButton(true);
+    }
+
+    public void ChangeDataButtonColor(int index, Color targetColor)
+    {
+        if (dataButtons[index] == null)
+        {
+            Debug.LogError($"dataButtons[{index}]ê°€ í• ë‹¹ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.");
+            return;
+        }
+
+        ColorBlock cb = dataButtons[index].colors;
+        cb.normalColor = targetColor;
+        dataButtons[index].colors = cb;
+    }
+
+
+    public void ChangeLocale(int index)
+    {
+        if (isChanging) return;
+
+        StartCoroutine(ChangeLocaleCoroutine(index));
+
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        // if (currentLocale.Identifier.Code == "en" || currentLocale.Identifier.Code == "it") delay = 0.05f;
+    }
+
+
+    IEnumerator ChangeLocaleCoroutine(int index)
+    {
+        isChanging = true;
+
+        yield return LocalizationSettings.InitializationOperation;
+        LocalizationSettings.SelectedLocale = LocalizationSettings.AvailableLocales.Locales[index];
+
+        isChanging = false;
+    }
+
+
+
+
+
+
+
+    public void ShowDemoEnding()
+    {        
+        StartCoroutine(FadeUtility.Instance.FadeIn(demoEnding, 5f));                
+
+        StartCoroutine(QuitGameAfterDelay(15f));
+    }    
+
+    private IEnumerator QuitGameAfterDelay(float delaySeconds)
+    {
+        yield return new WaitForSeconds(delaySeconds);
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
     }
 }

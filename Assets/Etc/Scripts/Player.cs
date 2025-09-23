@@ -22,6 +22,8 @@ public class Player : MonoBehaviour
     private CharacterCustomization cc;
     private Coroutine zoomCoroutine;
 
+    public CourtRole currentRole = CourtRole.Player;
+
     private void Awake()
     {
         animator = GetComponent<Animator>();
@@ -36,6 +38,10 @@ public class Player : MonoBehaviour
         ThirdPersonAimCamera.GetComponent<CinemachineCamera>().LookAt = target;
     }
 
+
+
+
+    /*
     public void ZoomCamera(int level)
     {
         float targetDistance;
@@ -78,7 +84,7 @@ public class Player : MonoBehaviour
         follow.CameraDistance = targetDistance;
     }
 
-
+    */
 
     /// <summary>
     /// �÷��̾ NPC �������� ȸ��

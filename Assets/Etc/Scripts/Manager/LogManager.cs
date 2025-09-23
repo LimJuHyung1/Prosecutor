@@ -8,6 +8,8 @@ public class LogManager : MonoBehaviour
     public GameObject logPage;
     public ScrollRect []logScrollRect;    
 
+    public InvestigationManager investigationManager;
+
     private int npcIndex = -1;
     private float space = 50f;    
     
@@ -27,9 +29,12 @@ public class LogManager : MonoBehaviour
         }
     }
 
-    public void SetupLogPage(bool isActive)
+    public void SetActiveLogPage(bool isActive)
     {
         logPage.gameObject.SetActive(isActive);
+
+        if(isActive) StartCoroutine(investigationManager.PauseTimer());
+        else investigationManager.StartTimer(false);
     }
 
     public void SetupNPCLog(int index)

@@ -3,6 +3,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using AdvancedPeopleSystem;
 using System.Collections;
+using UnityEngine.SceneManagement;
 
 public class SpecificNPC : NPC
 {
@@ -43,6 +44,12 @@ public class SpecificNPC : NPC
         SetRole();
 
         emotionHandler = new NPCEmotionHandler(animator, audioSource, cc, audioClipsPerEmotion);
+
+        string sceneName = SceneManager.GetActiveScene().name;
+        if(sceneName == "Court")
+        {
+            animator.SetBool("IsJudging", true);
+        }        
     }
 
     public void GetConversationManager(ConversationManager conversationManagerParam){

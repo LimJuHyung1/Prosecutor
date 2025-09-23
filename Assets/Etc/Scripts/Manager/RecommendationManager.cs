@@ -20,6 +20,7 @@ public class RecommendationManager : MonoBehaviour
         openAIApi = new OpenAIApi();
         SetRole();
 
+        SetInteractableButtons(false);
     }
 
     public void SetRole()
@@ -40,6 +41,8 @@ public class RecommendationManager : MonoBehaviour
             "• 관계: 엠마(윌리엄의 연인), 헨리(윌리엄이 투자한 병원의 병원장), 존(헨리의 병원 의료사고 피해자의 가족)" +
 
             "5월 7일 밤, 병원장 헨리가 시 외곽 공사 현장에서 사망한 채 발견되었다. " +
+
+            "윌리엄의 민감한 내용: " +
             "윌리엄은 연인인 엠마의 소개로 헨리를 알게 되었고 그의 병원에 투자했다. " +
             "그러나 재무 상태를 검토하는 과정에서 분식회계와 의료사고 은폐 정황을 발견하자 투자 철회를 시도했다. " +
             "이에 헨리는 투자 철회가 부당하다며 소송을 제기했지만, 얼마 지나지 않아 살해당했다." +
@@ -51,6 +54,7 @@ public class RecommendationManager : MonoBehaviour
             "• 성격: 명랑하고 밝은 성격, 야심이 크고 욕망에 충실함." +
             "• 관계: 윌리엄(현재 엠마의 연인), 헨리(최근 잦은 접촉이 있었던 병원장), 존(과거 엠마의 연인)" +
 
+            "엠마의 민감한 내용: " +
             "엠마는 윌리엄의 연인이었으나, 사교 파티에서 헨리를 만나 불륜 관계로 발전했다. " +
             "이후 엠마의 옛 연인 존이 이 사실을 알게 되었고, 윌리엄에게 폭로하겠다며 그녀를 협박했다. " +
             "엠마는 오히려 이를 역이용해 존을 회유하려 했고, 결국 헨리가 살해당하는 사건으로 이어졌다." +
@@ -62,6 +66,7 @@ public class RecommendationManager : MonoBehaviour
     "• 성격: 충동적이고 집착이 강하며, 감정 기복이 심함 " +
     "• 관계: 엠마(존의 과거 연인), 헨리(과거 어머니의 의료사고를 일으킨 병원장), 윌리엄(엠마의 현재 연인) " +
 
+    "존의 민감한 내용: " +
     "사건 발생 한 달 전 존의 어머니가 헨리가 병원장으로 있던 병원에서 의료사고를 당했음에도 아무런 사과를 받지 못했다. " +
     "분노한 존은 헨리가 직접 어머니의 수술 집도의였음을 알게 되었고 그를 조사하기 시작했다. " +
     "그러던 중 엠마와 헨리의 불륜 관계까지 알게 되면서, 이를 빌미로 두 사람을 협박했다. " +
@@ -96,7 +101,7 @@ public class RecommendationManager : MonoBehaviour
         string constraint =
 "제약 사항:\n" +
 "- 불필요하게 긴 설명은 하지 말 것\n" +
-"- 중립적인 시각에서 플레이어가 유리해질 수 있는 질문을 제시할 것\n" +
+"- 각 인물의 민감한 내용을 플레이어가 모른다는 전제 하에 추천 질문을 제시할 것 \n" +
 "- JSON 형식을 반드시 지킬 것\n";
 
 
@@ -120,8 +125,7 @@ public class RecommendationManager : MonoBehaviour
     {
         string question1 = "";
         string question2 = "";
-        string question3 = "";
-
+        string question3 = "";        
 
         ChatMessage newMessage = new ChatMessage
         {
@@ -164,7 +168,8 @@ public class RecommendationManager : MonoBehaviour
             recommendButtons[2].transform.GetChild(0).GetComponent<Text>().text = question3;
 
             Debug.Log(answer);
-            // conversationManager.ShowAnswer(answer);
+
+            SetInteractableButtons(true);
         }        
     }
 
@@ -173,5 +178,15 @@ public class RecommendationManager : MonoBehaviour
     {
         conversationManager.GetAskField().text = recommendButtons[index].transform.GetChild(0).GetComponent<Text>().text;
         conversationManager.FocusOnAskField();
+    }
+
+    public void SetInteractableButtons(bool state)
+    {
+        for (int i = 0; i < recommendButtons.Length; i++)
+        {
+            recommendButtons[i].interactable = state;
+            if(state == false)
+                recommendButtons[i].transform.GetChild(0).GetComponent<Text>().text = "Waiting...";
+        }
     }
 }

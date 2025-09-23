@@ -1,15 +1,17 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Localization.Settings;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+
+
 
 public class WilliamManager : MonoBehaviour
 {
     public Image screen;
-    public Image image1;
-    public Image image2;
+    public Image []images;    
     public GameObject dialogue;    
     
     [SerializeField] private Image[] slides = new Image[2];
@@ -17,21 +19,19 @@ public class WilliamManager : MonoBehaviour
     [SerializeField] private Text line;
     [SerializeField] private GameObject endWaitingMark;
 
-    public AudioClip[] audioClips; // ¿Àµğ¿À Å¬¸³ ¹è¿­ (ÇÊ¿ä½Ã »ç¿ë)
+    public AudioClip[] audioClips; // ì˜¤ë””ì˜¤ í´ë¦½ ë°°ì—´ (í•„ìš”ì‹œ ì‚¬ìš©)
+    public AudioClip[] susan1;
+    public AudioClip[] susan2;
+    public AudioClip[] cain1;
+    public AudioClip[] cain2;
     public Camera[] cameras;
-    public Sprite[] sprites;    // 0 - Àª¸®¾ö »çÁø, 1 - ±â»ç, 2 - °í¼Ò, 3 - Çî¸® ½Ã½ÅÀ¸·Î ¹ß°ßµÈ Àå¸é
+    public Sprite[] sprites;    // 0 - ìœŒë¦¬ì—„ ì‚¬ì§„, 1 - ê¸°ì‚¬, 2 - ê³ ì†Œ, 3 - í—¨ë¦¬ ì‹œì‹ ìœ¼ë¡œ ë°œê²¬ëœ ì¥ë©´
     public GameObject phone;
     
     public Profile profileSO;
     public ProfileManager profileManager;
 
-    public GameObject dataPanel;
-    public GameObject profilePage;
-    public Image newsPage;
-    public Image crimeScenePage;
-
-
-    private float delay = 0.05f;     // ±ÛÀÚ´ç Ãâ·Â ¼Óµµ (ÃÊ)
+    private float delay = 0.05f;     // ê¸€ìë‹¹ ì¶œë ¥ ì†ë„ (ì´ˆ)
     private Action[] methods;
     private AudioSource audioSource;
 
@@ -41,15 +41,18 @@ public class WilliamManager : MonoBehaviour
     {
         SwitchCamera(-1);
 
-        // ¸Ş¼ÒµåµéÀ» ¹è¿­¿¡ µî·Ï
+        // ë©”ì†Œë“œë“¤ì„ ë°°ì—´ì— ë“±ë¡
         methods = new Action[]
         {
             FirstScene,
             SecondScene
         };
 
-        image1.gameObject.SetActive(false);
-        image2.gameObject.SetActive(false);
+        for (int i = 0; i < images.Length; i++)
+        {
+            if (images[i] != null)
+                images[i].gameObject.SetActive(false);
+        }
 
         audioSource = GetComponent<AudioSource>();
 
@@ -59,10 +62,15 @@ public class WilliamManager : MonoBehaviour
         slides[0] = dialogue.transform.GetChild(0).GetComponent<Image>();
         slides[1] = dialogue.transform.GetChild(1).GetComponent<Image>();
 
-        dataPanel.gameObject.SetActive(false);
         // Slide(true, 0f);
         // SwitchCamera(0);
         methods[0]();
+
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        if (currentLocale.Identifier.Code == "ja")
+        {
+            delay = 0.1f;
+        }
     }
 
     private void SwitchCamera(int index)
@@ -84,21 +92,23 @@ public class WilliamManager : MonoBehaviour
         audioSource.clip = audioClips[index];
     }
 
-    public IEnumerator ShowText(string NPCName = "", string fullText = "", Action onFinished = null)
+    public IEnumerator ShowText(string NPCName = "", string fullText = "", AudioClip sound = null, Action onFinished = null)
     {
         this.NPCName.text = NPCName;
-        line.text = ""; // ÃÊ±âÈ­
+        line.text = ""; // ì´ˆê¸°í™”
+        audioSource.clip = sound;
+        audioSource.Play();
 
-        // ±ÛÀÚ ÇÏ³ª¾¿ Ãâ·Â
+        // ê¸€ì í•˜ë‚˜ì”© ì¶œë ¥
         foreach (char c in fullText)
         {
             line.text += c;
             yield return new WaitForSeconds(delay);
         }
 
-        // ¸ğµç ÅØ½ºÆ®°¡ Ãâ·ÂµÈ ÈÄ ¡æ ÀÔ·Â ´ë±â
+        // ëª¨ë“  í…ìŠ¤íŠ¸ê°€ ì¶œë ¥ëœ í›„ â†’ ì…ë ¥ ëŒ€ê¸°
         bool waitingInput = true;
-        endWaitingMark.SetActive(true); // ÀÔ·Â ´ë±â ¸¶Å© È°¼ºÈ­
+        endWaitingMark.SetActive(true); // ì…ë ¥ ëŒ€ê¸° ë§ˆí¬ í™œì„±í™”
         while (waitingInput)
         {
             if (
@@ -113,12 +123,12 @@ public class WilliamManager : MonoBehaviour
                 waitingInput = false;
             }
 
-            yield return null; // ´ÙÀ½ ÇÁ·¹ÀÓ±îÁö ´ë±â
+            yield return null; // ë‹¤ìŒ í”„ë ˆì„ê¹Œì§€ ëŒ€ê¸°
         }
 
-        endWaitingMark.SetActive(false); // ÀÔ·Â ´ë±â ¸¶Å© ºñÈ°¼ºÈ­
+        endWaitingMark.SetActive(false); // ì…ë ¥ ëŒ€ê¸° ë§ˆí¬ ë¹„í™œì„±í™”
 
-        // ÀÔ·ÂÀÌ °¨ÁöµÇ¸é ´ÙÀ½ ¾×¼Ç ½ÇÇà
+        // ì…ë ¥ì´ ê°ì§€ë˜ë©´ ë‹¤ìŒ ì•¡ì…˜ ì‹¤í–‰
         if (onFinished != null)
             onFinished();
     }
@@ -143,6 +153,8 @@ public class WilliamManager : MonoBehaviour
         yield return new WaitForSeconds(2f);
 
         // yield return StartCoroutine(FadeUtility.Instance.FadeOut(screen, 3f));
+        var currentLocale = LocalizationSettings.SelectedLocale;
+
         Slide(true, 0f);
 
         SetAudioClip(0);
@@ -157,39 +169,120 @@ public class WilliamManager : MonoBehaviour
 
         yield return new WaitForSeconds(2f);
 
-        NPCName.color = Color.darkBlue;
-        yield return StartCoroutine(ShowText("ÄÉÀÎ", "°Ë»ç´Ô, ¹æ±İ ´º½º º¸¼Ì½À´Ï±î?"));
+        if (currentLocale.Identifier.Code == "en")
+        {
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("Cain", "Prosecutor, did you see the news just now?", cain1[0]));
 
-        NPCName.color = Color.darkRed;
-        yield return StartCoroutine(ShowText("¼öÀÜ", "Çî¸® º´¿øÀå »ç°Ç ¸»¾¸ÇÏ½Ã´Â °ÅÁÒ?"));
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("Susan", "You mean the case of Director Henry from the hospital, right?", susan1[0]));
 
-        NPCName.color = Color.darkBlue;
-        yield return StartCoroutine(ShowText("ÄÉÀÎ", "¿¹. ±× »ç°ÇÀÌ °Ë»ç´Ô²² ¹èÁ¤µÉ ¿¹Á¤ÀÔ´Ï´Ù."));
-        yield return StartCoroutine(ShowText("ÄÉÀÎ", "°ğ »ç°Ç ÀÚ·á¸¦ Á¤¸®ÇØ Àü´Şµå¸®°Ú½À´Ï´Ù."));
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("Cain", "Yes. That case is going to be assigned to you.", cain1[1]));
+            yield return StartCoroutine(ShowText("Cain", "Iâ€™ll organize the case files and deliver them shortly.", cain1[2]));
 
-        NPCName.color = Color.darkRed;
-        yield return StartCoroutine(ShowText("¼öÀÜ", "³×, ÁØºñÇÏ°í ÀÖ°Ú½À´Ï´Ù."));
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("Susan", "Understood, Iâ€™ll be ready.", susan1[1]));
 
-        SetAudioClip(2);
-        audioSource.Play();
-        yield return StartCoroutine(FadeUtility.Instance.FadeOut(screen, 1f));
+            SetAudioClip(2);
+            audioSource.Play();
+            yield return StartCoroutine(FadeUtility.Instance.FadeOut(screen, 1f));
 
-        yield return StartCoroutine(ShowText("¼öÀÜ", "(À¯¸í º´¿øÀÇ º´¿øÀåÀÌ °ø»ç ÇöÀå¿¡¼­ »ìÇØµÈ Ã¤·Î ¹ß°ßµÇ¾ú´Ù)"));
-        yield return StartCoroutine(ShowText("¼öÀÜ", "(¿ì¼± Çî¸®ÀÇ ÁÖº¯ ÀÎ¹°ºÎÅÍ Á¶»çÇØ¾ß µÇ°Ú¾î)"));
+            yield return StartCoroutine(ShowText("Susan", "(The director of a well-known hospital was found murdered at a construction site.)", susan1[2]));
+            yield return StartCoroutine(ShowText("Susan", "(First, I need to investigate the people around Henry.)", susan1[3]));
 
-        yield return StartCoroutine(FadeUtility.Instance.FadeIn(screen, 3f));
+            yield return StartCoroutine(FadeUtility.Instance.FadeIn(screen, 3f));
 
-        yield return StartCoroutine(ShowText("", "", SecondScene));
+            yield return StartCoroutine(ShowText("", "", null, SecondScene));
+        }
+        else if(currentLocale.Identifier.Code == "it")
+        {
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("Cain", "Procuratore, ha visto il telegiornale poco fa?", cain1[0]));
+
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("Susan", "Si riferisce al caso del direttore Henry dellâ€™ospedale, giusto?", susan1[0]));
+
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("Cain", "Esatto. Quel caso sarÃ  assegnato a lei.", cain1[1]));
+            yield return StartCoroutine(ShowText("Cain", "Presto organizzerÃ² i fascicoli e glieli consegnerÃ².", cain1[2]));
+
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("Susan", "Va bene, mi farÃ² trovare pronta.", susan1[1]));
+
+            SetAudioClip(2);
+            audioSource.Play();
+            yield return StartCoroutine(FadeUtility.Instance.FadeOut(screen, 1f));
+
+            yield return StartCoroutine(ShowText("Susan", "(Il direttore di un noto ospedale Ã¨ stato trovato assassinato in un cantiere.)", susan1[2]));
+            yield return StartCoroutine(ShowText("Susan", "(Per prima cosa devo indagare sulle persone vicine a Henry.)", susan1[3]));
+
+            yield return StartCoroutine(FadeUtility.Instance.FadeIn(screen, 3f));
+
+            yield return StartCoroutine(ShowText("", "", null, SecondScene));
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("ã‚±ã‚¤ãƒ³", "æ¤œäº‹ã€ã•ã£ãã®ãƒ‹ãƒ¥ãƒ¼ã‚¹ã‚’ã”è¦§ã«ãªã‚Šã¾ã—ãŸã‹ï¼Ÿ", cain1[0]));
+
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("ã‚¹ãƒ¼ã‚¶ãƒ³", "ãƒ˜ãƒ³ãƒªãƒ¼é™¢é•·ã®äº‹ä»¶ã®ã“ã¨ã§ã™ã‚ˆã­ï¼Ÿ", susan1[0]));
+
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("ã‚±ã‚¤ãƒ³", "ã¯ã„ã€‚ãã®äº‹ä»¶ã¯æ¤œäº‹ã•ã‚“ã«é…å±ã•ã‚Œã‚‹äºˆå®šã§ã™ã€‚", cain1[1]));
+            yield return StartCoroutine(ShowText("ã‚±ã‚¤ãƒ³", "ã¾ã‚‚ãªãè³‡æ–™ã‚’æ•´ç†ã—ã¦ãŠæ¸¡ã—ã—ã¾ã™ã€‚", cain1[2]));
+
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("ã‚¹ãƒ¼ã‚¶ãƒ³", "ã‚ã‹ã‚Šã¾ã—ãŸã€‚æº–å‚™ã—ã¦ãŠãã¾ã™ã€‚", susan1[1]));
+
+            SetAudioClip(2);
+            audioSource.Play();
+            yield return StartCoroutine(FadeUtility.Instance.FadeOut(screen, 1f));
+
+            yield return StartCoroutine(ShowText("ã‚¹ãƒ¼ã‚¶ãƒ³", "ï¼ˆæœ‰åãªç—…é™¢ã®é™¢é•·ãŒå·¥äº‹ç¾å ´ã§æ®ºå®³ã•ã‚ŒãŸçŠ¶æ…‹ã§ç™ºè¦‹ã•ã‚ŒãŸï¼‰", susan1[2]));
+            yield return StartCoroutine(ShowText("ã‚¹ãƒ¼ã‚¶ãƒ³", "ï¼ˆã¾ãšã¯ãƒ˜ãƒ³ãƒªãƒ¼ã®å‘¨å›²ã®äººç‰©ã‹ã‚‰èª¿ã¹ãªã‘ã‚Œã°ï¼‰", susan1[3]));
+
+            yield return StartCoroutine(FadeUtility.Instance.FadeIn(screen, 3f));
+
+            yield return StartCoroutine(ShowText("", "", null, SecondScene));
+        }
+        else if( currentLocale.Identifier.Code == "ko")
+        {
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("ì¼€ì¸", "ê²€ì‚¬ë‹˜, ë°©ê¸ˆ ë‰´ìŠ¤ ë³´ì…¨ìŠµë‹ˆê¹Œ?", cain1[0]));
+
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("ìˆ˜ì”", "í—¨ë¦¬ ë³‘ì›ì¥ ì‚¬ê±´ ë§ì”€í•˜ì‹œëŠ” ê±°ì£ ?", susan1[0]));
+
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("ì¼€ì¸", "ì˜ˆ. ê·¸ ì‚¬ê±´ì´ ê²€ì‚¬ë‹˜ê»˜ ë°°ì •ë  ì˜ˆì •ì…ë‹ˆë‹¤.", cain1[1]));
+            yield return StartCoroutine(ShowText("ì¼€ì¸", "ê³§ ì‚¬ê±´ ìë£Œë¥¼ ì •ë¦¬í•´ ì „ë‹¬ë“œë¦¬ê² ìŠµë‹ˆë‹¤.", cain1[2]));
+
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("ìˆ˜ì”", "ë„¤, ì¤€ë¹„í•˜ê³  ìˆê² ìŠµë‹ˆë‹¤.", susan1[1]));
+
+            SetAudioClip(2);
+            audioSource.Play();
+            yield return StartCoroutine(FadeUtility.Instance.FadeOut(screen, 1f));
+
+            yield return StartCoroutine(ShowText("ìˆ˜ì”", "(ìœ ëª… ë³‘ì›ì˜ ë³‘ì›ì¥ì´ ê³µì‚¬ í˜„ì¥ì—ì„œ ì‚´í•´ëœ ì±„ë¡œ ë°œê²¬ë˜ì—ˆë‹¤)", susan1[2]));
+            yield return StartCoroutine(ShowText("ìˆ˜ì”", "(ìš°ì„  í—¨ë¦¬ì˜ ì£¼ë³€ ì¸ë¬¼ë¶€í„° ì¡°ì‚¬í•´ì•¼ ë˜ê² ì–´)", susan1[3]));
+
+            yield return StartCoroutine(FadeUtility.Instance.FadeIn(screen, 3f));
+
+            yield return StartCoroutine(ShowText("", "", null, SecondScene));
+        }
     }
 
-    // cameras[0]ÀÌ phoneÀ» ÇâÇØ È¸ÀüÇÏ´Â ÄÚ·çÆ¾
+    // cameras[0]ì´ phoneì„ í–¥í•´ íšŒì „í•˜ëŠ” ì½”ë£¨í‹´
     private IEnumerator LookAtPhone(float duration = 2f)
     {
         Camera cam = cameras[0];
         if (cam == null || phone == null)
             yield break;
 
-        // ½ÃÀÛ È¸Àü°ª°ú ¸ñÇ¥ È¸Àü°ª ÀúÀå
+        // ì‹œì‘ íšŒì „ê°’ê³¼ ëª©í‘œ íšŒì „ê°’ ì €ì¥
         Quaternion startRot = cam.transform.rotation;
         Vector3 dir = (phone.transform.position - cam.transform.position).normalized;
         Quaternion targetRot = Quaternion.LookRotation(dir, Vector3.up);
@@ -200,12 +293,12 @@ public class WilliamManager : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
 
-            // ºÎµå·´°Ô È¸Àü
+            // ë¶€ë“œëŸ½ê²Œ íšŒì „
             cam.transform.rotation = Quaternion.Slerp(startRot, targetRot, t);
             yield return null;
         }
 
-        // ÃÖÁ¾ÀûÀ¸·Î phoneÀ» Á¤È®È÷ ¹Ù¶óº¸µµ·Ï ¼³Á¤
+        // ìµœì¢…ì ìœ¼ë¡œ phoneì„ ì •í™•íˆ ë°”ë¼ë³´ë„ë¡ ì„¤ì •
         cam.transform.rotation = targetRot;
     }
 
@@ -219,48 +312,149 @@ public class WilliamManager : MonoBehaviour
 
     private IEnumerator SecondCamera()
     {
-        // Àª¸®¾ö °ü·Ã UI È°¼ºÈ­
+        // ìœŒë¦¬ì—„ ê´€ë ¨ UI í™œì„±í™”
 
         // yield return StartCoroutine(FadeUtility.Instance.FadeOut(screen, 3f));
+        var currentLocale = LocalizationSettings.SelectedLocale;
 
-        image1.sprite = sprites[0];
-        StartCoroutine(FadeUtility.Instance.FadeIn(image1, 1f));
-        NPCName.color = Color.darkBlue;
-        yield return StartCoroutine(ShowText("ÄÉÀÎ", "ÀÌ »ç¶÷Àº Àª¸®¾ö, ¿À¸®¿Â Ä³ÇÇÅ»ÀÇ ºÎ»çÀåÀÔ´Ï´Ù."));
+        if (currentLocale.Identifier.Code == "en")
+        {
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[0], 1f));
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("Cain", "This man is William, the vice president of Orion Capital.", cain2[0]));
 
-        image2.sprite = sprites[1];
-        StartCoroutine(FadeUtility.Instance.FadeIn(image2, 3f));
-        yield return StartCoroutine(ShowText("ÄÉÀÎ", "ÇÑ ´Ş Àü, Çî¸®ÀÇ º´¿ø¿¡ °Å¾×À» ÅõÀÚÇß´Ù´Â »ç½ÇÀÌ ¾ğ·Ğ¿¡ º¸µµµÆ½À´Ï´Ù."));
-        yield return StartCoroutine(ShowText("ÄÉÀÎ", "±×·±µ¥ ÃÖ±Ù º´¿ø ÀçÁ¤À» °ËÅäÇÏ´Â °úÁ¤¿¡¼­ ºĞ½ÄÈ¸°è¿Í ÀÇ·á»ç°í ÀºÆó Á¤È²À» ¹ß°ßÇß°í,\nÅõÀÚ Ã¶È¸¸¦ °ËÅäÇß´Ù°í ÇÕ´Ï´Ù."));
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[1], 3f));
+            yield return StartCoroutine(ShowText("Cain", "About a month ago, the media reported that he had invested a huge sum in Henryâ€™s hospital.", cain2[1]));
+            yield return StartCoroutine(ShowText("Cain", "But recently, during a financial review of the hospital, evidence of accounting fraud and medical malpractice cover-ups was uncovered, and he reportedly considered withdrawing the investment.", cain2[2]));
 
-        NPCName.color = Color.darkRed;
-        yield return StartCoroutine(ShowText("¼öÀÜ", "Çî¸® ÀÔÀå¿¡¼­´Â ÅõÀÚ±İÀ» µ¹·ÁÁÙ ¼ö ¾ø¾úÀ» °Ì´Ï´Ù. ¾î¶»°Ôµç ¸·À¸·Á Çß°Ú±º¿ä."));
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("Susan", "From Henryâ€™s standpoint, he couldnâ€™t return the investment. He must have tried to block it at all costs.", susan2[0]));
 
-        StartCoroutine(FadeUtility.Instance.FadeOut(image1, 1.5f));
-        yield return StartCoroutine(FadeUtility.Instance.FadeOut(image2, 1.5f));
-        
-        image1.sprite = sprites[2];
-        image2.sprite = sprites[3];
-        StartCoroutine(FadeUtility.Instance.FadeIn(image1, 1f));
-        NPCName.color = Color.darkBlue;
-        yield return StartCoroutine(ShowText("ÄÉÀÎ", "¸Â½À´Ï´Ù. ½ÇÁ¦·Î Çî¸®´Â ÅõÀÚ Ã¶È¸°¡ ºÎ´çÇÏ´Ù¸ç Àª¸®¾öÀ» »ó´ë·Î ¼Ò¼ÛÀ» Á¦±âÇß½À´Ï´Ù."));
+            StartCoroutine(FadeUtility.Instance.FadeOut(images[0], 1.5f));
+            yield return StartCoroutine(FadeUtility.Instance.FadeOut(images[1], 1.5f));
 
-        StartCoroutine(FadeUtility.Instance.FadeIn(image2, 1f));
-        yield return StartCoroutine(ShowText("ÄÉÀÎ", "±×¸®°í ±× Á÷ÈÄ, Çî¸®°¡ »ìÇØ´çÇÑ °Ì´Ï´Ù."));
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[2], 1f));
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("Cain", "Thatâ€™s right. In fact, Henry even filed a lawsuit against William, claiming the withdrawal was unjustified.", cain2[3]));
 
-        NPCName.color = Color.darkRed;
-        yield return StartCoroutine(ShowText("¼öÀÜ", "Àª¸®¾öÀÌ »ç°Ç¿¡ ¿¬·çµÆÀ» °¡´É¼ºÀ» ¹èÁ¦ÇÒ ¼ö ¾ø°Ú±º¿ä."));
-        yield return StartCoroutine(ShowText("¼öÀÜ", "µÎ »ç¶÷ »çÀÌ¿¡ ¹«½¼ ÀÏÀÌ ÀÖ¾ú´ÂÁö Á» ´õ ±íÀÌ ÆÄ¾ÇÇØ¾ß°Ú½À´Ï´Ù."));
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[3], 1f));
+            yield return StartCoroutine(ShowText("Cain", "And shortly after that, Henry was murdered.", cain2[4]));
 
-        StartCoroutine(FadeUtility.Instance.FadeOut(image1, 1.5f));
-        yield return StartCoroutine(FadeUtility.Instance.FadeOut(image2, 1.5f));
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("Susan", "We canâ€™t rule out the possibility that William was involved in the case.", susan2[1]));
+            yield return StartCoroutine(ShowText("Susan", "We need to dig deeper into what really happened between the two.", susan2[2]));
 
-        NPCName.color = Color.darkBlue;
-        yield return StartCoroutine(ShowText("ÄÉÀÎ", "°ğ Àª¸®¾öÀ» Á¶»ç½Ç¿¡¼­ Á÷Á¢ ´ë¸éÇÏ°Ô µÉ ¿¹Á¤ÀÔ´Ï´Ù."));
-        yield return StartCoroutine(ShowText("ÄÉÀÎ", "Á¶»ç½Ç¿¡ Àª¸®¾ö °ü·Ã ÀÚ·á ¹× »ç°Ç ÇöÀå ÀÚ·á°¡ ÁØºñµÇ¾î ÀÖ½À´Ï´Ù."));
-        yield return StartCoroutine(ShowText("ÄÉÀÎ", "ÀÚ, Ãâ¹ßÇÏ½ÃÁÒ."));
+            StartCoroutine(FadeUtility.Instance.FadeOut(images[2], 1.5f));
+            yield return StartCoroutine(FadeUtility.Instance.FadeOut(images[3], 1.5f));
 
-        // Data UI È°¼º
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("Cain", "Youâ€™ll be facing William directly in the interrogation room soon.", cain2[5]));
+            yield return StartCoroutine(ShowText("Cain", "Come on, letâ€™s go.", cain2[6]));
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[0], 1f));
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("Cain", "Questâ€™uomo Ã¨ William, il vicepresidente di Orion Capital.", cain2[0]));
+
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[1], 3f));
+            yield return StartCoroutine(ShowText("Cain", "Un mese fa circa, i media hanno riportato che aveva investito una grossa somma nellâ€™ospedale di Henry.", cain2[1]));
+            yield return StartCoroutine(ShowText("Cain", "Ma di recente, durante una revisione finanziaria dellâ€™ospedale, sono emerse prove di falso in bilancio e di occultamento di casi medici,\ne pare che abbia preso in considerazione il ritiro dellâ€™investimento.", cain2[2]));
+
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("Susan", "Dal punto di vista di Henry, non poteva restituire i fondi. AvrÃ  cercato di impedirlo a tutti i costi.", susan2[0]));
+
+            StartCoroutine(FadeUtility.Instance.FadeOut(images[0], 1.5f));
+            yield return StartCoroutine(FadeUtility.Instance.FadeOut(images[1], 1.5f));
+
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[2], 1f));
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("Cain", "Esatto. In effetti Henry ha persino intentato una causa contro William, sostenendo che il ritiro fosse ingiustificato.", cain2[3]));
+
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[3], 1f));
+            yield return StartCoroutine(ShowText("Cain", "E subito dopo, Henry Ã¨ stato assassinato.", cain2[4]));
+
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("Susan", "Non si puÃ² escludere la possibilitÃ  che William sia coinvolto nel caso.", susan2[1]));
+            yield return StartCoroutine(ShowText("Susan", "Dobbiamo approfondire cosa sia realmente successo tra i due.", susan2[2]));
+
+            StartCoroutine(FadeUtility.Instance.FadeOut(images[2], 1.5f));
+            yield return StartCoroutine(FadeUtility.Instance.FadeOut(images[3], 1.5f));
+
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("Cain", "Presto affronterÃ  William direttamente nella sala degli interrogatori.", cain2[5]));
+            yield return StartCoroutine(ShowText("Cain", "Andiamo, Ã¨ ora di partire.", cain2[6]));
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[0], 1f));
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("ã‚±ã‚¤ãƒ³", "ã“ã®äººç‰©ã¯ã‚¦ã‚£ãƒªã‚¢ãƒ ã€ã‚ªãƒªã‚ªãƒ³ãƒ»ã‚­ãƒ£ãƒ”ã‚¿ãƒ«ã®å‰¯ç¤¾é•·ã§ã™ã€‚", cain2[0]));
+
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[1], 3f));
+            yield return StartCoroutine(ShowText("ã‚±ã‚¤ãƒ³", "1ã‹æœˆå‰ã€å½¼ãŒãƒ˜ãƒ³ãƒªãƒ¼ã®ç—…é™¢ã«å·¨é¡ã®æŠ•è³‡ã‚’ã—ãŸã¨å ±ã˜ã‚‰ã‚Œã¾ã—ãŸã€‚", cain2[1]));
+            yield return StartCoroutine(ShowText("ã‚±ã‚¤ãƒ³", "ã—ã‹ã—æœ€è¿‘ã€ç—…é™¢ã®è²¡å‹™ã‚’ç²¾æŸ»ã™ã‚‹éç¨‹ã§ç²‰é£¾æ±ºç®—ã‚„åŒ»ç™‚äº‹æ•…ã®éš è”½ã®ç–‘ã„ãŒç™ºè¦šã—ã€\næŠ•è³‡ã®æ’¤å›ã‚’æ¤œè¨ã—ã¦ã„ãŸã¨ã„ã„ã¾ã™ã€‚", cain2[2]));
+
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("ã‚¹ãƒ¼ã‚¶ãƒ³", "ãƒ˜ãƒ³ãƒªãƒ¼ã®ç«‹å ´ã‹ã‚‰ã™ã‚Œã°ã€æŠ•è³‡é‡‘ã‚’è¿”ã™ã“ã¨ã¯ã§ããªã‹ã£ãŸã§ã—ã‚‡ã†ã€‚ä½•ã¨ã—ã¦ã‚‚é˜»æ­¢ã—ã‚ˆã†ã¨ã—ãŸã¯ãšã§ã™ã€‚", susan2[0]));
+
+            StartCoroutine(FadeUtility.Instance.FadeOut(images[0], 1.5f));
+            yield return StartCoroutine(FadeUtility.Instance.FadeOut(images[1], 1.5f));
+
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[2], 1f));
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("ã‚±ã‚¤ãƒ³", "ãã®é€šã‚Šã§ã™ã€‚å®Ÿéš›ã«ãƒ˜ãƒ³ãƒªãƒ¼ã¯ã€æŠ•è³‡æ’¤å›ã¯ä¸å½“ã ã¨ã—ã¦ã‚¦ã‚£ãƒªã‚¢ãƒ ã‚’ç›¸æ‰‹ã«è¨´è¨Ÿã‚’èµ·ã“ã—ã¾ã—ãŸã€‚", cain2[3]));
+
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[3], 1f));
+            yield return StartCoroutine(ShowText("ã‚±ã‚¤ãƒ³", "ãã—ã¦ãã®ç›´å¾Œã€ãƒ˜ãƒ³ãƒªãƒ¼ã¯æ®ºå®³ã•ã‚ŒãŸã®ã§ã™ã€‚", cain2[4]));
+
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("ã‚¹ãƒ¼ã‚¶ãƒ³", "ã‚¦ã‚£ãƒªã‚¢ãƒ ãŒäº‹ä»¶ã«é–¢ä¸ã—ã¦ã„ãŸå¯èƒ½æ€§ã¯å¦å®šã§ãã¾ã›ã‚“ã­ã€‚", susan2[1]));
+            yield return StartCoroutine(ShowText("ã‚¹ãƒ¼ã‚¶ãƒ³", "äºŒäººã®é–“ã§ä½•ãŒã‚ã£ãŸã®ã‹ã€ã•ã‚‰ã«æ·±ãèª¿ã¹ã‚‹å¿…è¦ãŒã‚ã‚Šã¾ã™ã€‚", susan2[2]));
+
+            StartCoroutine(FadeUtility.Instance.FadeOut(images[2], 1.5f));
+            yield return StartCoroutine(FadeUtility.Instance.FadeOut(images[3], 1.5f));
+
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("ã‚±ã‚¤ãƒ³", "ã¾ã‚‚ãªãå–èª¿å®¤ã§ã‚¦ã‚£ãƒªã‚¢ãƒ ã¨ç›´æ¥å¯¾é¢ã™ã‚‹ã“ã¨ã«ãªã‚Šã¾ã™ã€‚", cain2[5]));
+            yield return StartCoroutine(ShowText("ã‚±ã‚¤ãƒ³", "ã•ã‚ã€è¡Œãã¾ã—ã‚‡ã†ã€‚", cain2[6]));
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[0], 1f));
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("ì¼€ì¸", "ì´ ì‚¬ëŒì€ ìœŒë¦¬ì—„, ì˜¤ë¦¬ì˜¨ ìºí”¼íƒˆì˜ ë¶€ì‚¬ì¥ì…ë‹ˆë‹¤.", cain2[0]));
+
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[1], 3f));
+            yield return StartCoroutine(ShowText("ì¼€ì¸", "í•œ ë‹¬ ì „, í—¨ë¦¬ì˜ ë³‘ì›ì— ê±°ì•¡ì„ íˆ¬ìí–ˆë‹¤ëŠ” ì‚¬ì‹¤ì´ ì–¸ë¡ ì— ë³´ë„ëìŠµë‹ˆë‹¤.", cain2[1]));
+            yield return StartCoroutine(ShowText("ì¼€ì¸", "ê·¸ëŸ°ë° ìµœê·¼ ë³‘ì› ì¬ì •ì„ ê²€í† í•˜ëŠ” ê³¼ì •ì—ì„œ ë¶„ì‹íšŒê³„ì™€ ì˜ë£Œì‚¬ê³  ì€í ì •í™©ì„ ë°œê²¬í–ˆê³ ,\níˆ¬ì ì² íšŒë¥¼ ê²€í† í–ˆë‹¤ê³  í•©ë‹ˆë‹¤.", cain2[2]));
+
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("ìˆ˜ì”", "í—¨ë¦¬ ì…ì¥ì—ì„œëŠ” íˆ¬ìê¸ˆì„ ëŒë ¤ì¤„ ìˆ˜ ì—†ì—ˆì„ ê²ë‹ˆë‹¤. ì–´ë–»ê²Œë“  ë§‰ìœ¼ë ¤ í–ˆê² êµ°ìš”.", susan2[0]));
+
+            StartCoroutine(FadeUtility.Instance.FadeOut(images[0], 1.5f));
+            yield return StartCoroutine(FadeUtility.Instance.FadeOut(images[1], 1.5f));
+
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[2], 1f));
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("ì¼€ì¸", "ë§ìŠµë‹ˆë‹¤. ì‹¤ì œë¡œ í—¨ë¦¬ëŠ” íˆ¬ì ì² íšŒê°€ ë¶€ë‹¹í•˜ë‹¤ë©° ìœŒë¦¬ì—„ì„ ìƒëŒ€ë¡œ ì†Œì†¡ì„ ì œê¸°í–ˆìŠµë‹ˆë‹¤.", cain2[3]));
+
+            StartCoroutine(FadeUtility.Instance.FadeIn(images[3], 1f));
+            yield return StartCoroutine(ShowText("ì¼€ì¸", "ê·¸ë¦¬ê³  ê·¸ ì§í›„, í—¨ë¦¬ê°€ ì‚´í•´ë‹¹í•œ ê²ë‹ˆë‹¤.", cain2[4]));
+
+            NPCName.color = Color.darkRed;
+            yield return StartCoroutine(ShowText("ìˆ˜ì”", "ìœŒë¦¬ì—„ì´ ì‚¬ê±´ì— ì—°ë£¨ëì„ ê°€ëŠ¥ì„±ì„ ë°°ì œí•  ìˆ˜ ì—†ê² êµ°ìš”.", susan2[1]));
+            yield return StartCoroutine(ShowText("ìˆ˜ì”", "ë‘ ì‚¬ëŒ ì‚¬ì´ì— ë¬´ìŠ¨ ì¼ì´ ìˆì—ˆëŠ”ì§€ ì¢€ ë” ê¹Šì´ íŒŒì•…í•´ì•¼ê² ìŠµë‹ˆë‹¤.", susan2[2]));
+
+            StartCoroutine(FadeUtility.Instance.FadeOut(images[2], 1.5f));
+            yield return StartCoroutine(FadeUtility.Instance.FadeOut(images[3], 1.5f));
+
+            NPCName.color = Color.darkBlue;
+            yield return StartCoroutine(ShowText("ì¼€ì¸", "ê³§ ì‹¬ë¬¸ì‹¤ì—ì„œ ìœŒë¦¬ì—„ì„ ì§ì ‘ ëŒ€ë©´í•˜ê²Œ ë  ì˜ˆì •ì…ë‹ˆë‹¤.", cain2[5]));
+            yield return StartCoroutine(ShowText("ì¼€ì¸", "ì, ì¶œë°œí•˜ì‹œì£ .", cain2[6]));
+        }
+
+        // Data UI í™œì„±
 
         NPCName.text = "";
         line.text = "";
@@ -268,31 +462,6 @@ public class WilliamManager : MonoBehaviour
         yield return new WaitForSeconds(3f);
         SceneManager.LoadScene("Interrogation Room 1");
         // dataPanel.gameObject.SetActive(true);
-    }
-
-
-
-
-
-    public void ProfileButton()
-    {
-        profileManager.UpdateProfileUI(profileSO);
-        profilePage.gameObject.SetActive(true);
-    }
-
-    public void NewsButton()
-    {
-        newsPage.gameObject.SetActive(true);
-    }
-
-    public void CrimeSceneButton()
-    {
-        crimeScenePage.gameObject.SetActive(true);
-    }
-
-    public void InvestigateWilliam()
-    {
-        // SceneManager.LoadScene();
     }
 
 

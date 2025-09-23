@@ -12,9 +12,14 @@ public class Lawyer : NPC
     protected OpenAIApi openAIApi;
     private NPCEmotionHandler emotionHandler;
 
+    public RuntimeAnimatorController maleAnimationController;
+    public RuntimeAnimatorController femaleAnimationController;
+
     public CourtManager courtManager;
     public SpecificNPC specificNPC; // SpecificNPC 스크립트 참조
     public List<EmotionClipList> audioClipsPerEmotion;  // 0: Neutral, 1: Joy, 2: Sadness, 3: Anger, 4: Fear, 5: Disgust, 6: Surprise    
+
+    public CourtRole currentRole = CourtRole.Lawyer;
 
     protected void Start()
     {
@@ -25,6 +30,15 @@ public class Lawyer : NPC
 
         // 시작 시 랜덤 외형 적용
         RandomizeAppearancePartial();
+
+        if (cc.Settings.name.Contains("Male"))
+            {
+            animator.runtimeAnimatorController = maleAnimationController;
+        }
+        else if (cc.Settings.name.Contains("Female"))
+        {
+            animator.runtimeAnimatorController = femaleAnimationController;
+        }
     }
 
     /// <summary>
@@ -225,14 +239,31 @@ public class Lawyer : NPC
 
 
         string format =
-"응답 형식:\n\n" +
-"{\n" +
-"  \"emotion\": \"Neutral | Joy | Sadness | Anger | Fear | Disgust | Surprise\",\n" +
-"  \"response\": \"짧은 길이의 한국어 답변\",\n" +
-"  \"strategy\": \"refute | unable_to_refute\"\n" +
-"}";
+        "응답 형식:\n\n" +
+        "{\n" +
+        "  \"emotion\": \"Neutral | Joy | Sadness | Anger | Fear | Disgust | Surprise\",\n" +
+        "  \"target\": \"Player | Judge\",\n" +
+        "  \"response\": \"짧은 길이의 한국어 답변\"\n" +
+        "}\n\n" +
 
-        ChatMessage systemMessage = new ChatMessage
+        "출력 예시:\n" +
+        "{\n" +
+        "  \"emotion\": \"Neutral\",\n" +
+        "  \"target\": \"Player\",\n" +
+        "  \"response\": \"검사님, 그 증거가 사건과 어떻게 연결되는지 명확히 밝혀 주십시오.\"\n" +
+        "}\n\n" +
+
+        "{\n" +
+        "  \"emotion\": \"Anger\",\n" +
+        "  \"target\": \"Judge\",\n" +
+        "  \"response\": \"이 증거는 위법하게 수집되었을 가능성이 큽니다. 인정될 수 없습니다.\"\n" +
+        "}\n\n" +
+
+        "'emotion' 필드는 캐릭터의 감정 상태를 나타냅니다.\n" +
+
+        "'target'은 자신의 응답을 전달할 상대방을 나타냅니다.\r\n ";
+
+                ChatMessage systemMessage = new ChatMessage
         {
             Role = "system",
             Content = role + audience + information + task + style + constraint + format
@@ -240,17 +271,21 @@ public class Lawyer : NPC
         chatMessages.Add(systemMessage);
     }
     
-    public async void GetResponse()
+    public async void GetResponse(string question, bool noResponse)
     {
-        if (courtManager.GetAskFieldTextLength() < 1)
+        if (question.Length < 1)
         {
             return;
         }
 
+        string role = noResponse ? "system" : "user";
+        
+
         ChatMessage newMessage = new ChatMessage
         {
-            Content = courtManager.GetAskFieldText(),
-            Role = "user"
+            // Content = courtManager.GetAskFieldText(),
+            Content = question,
+            Role = role
         };
 
         chatMessages.Add(newMessage);
@@ -258,23 +293,26 @@ public class Lawyer : NPC
         CreateChatCompletionRequest request = new CreateChatCompletionRequest
         {
             Messages = chatMessages,
-            Model = "gpt-4o-mini"                 
+            Model = "gpt-4o-mini"
         };
 
-        var response = await openAIApi.CreateChatCompletion(request);
-
-        if (response.Choices != null && response.Choices.Count > 0)
+        if (!noResponse)
         {
-            var chatResponse = response.Choices[0].Message; 
+            var response = await openAIApi.CreateChatCompletion(request);
 
-            chatMessages.Add(chatResponse);
+            if (response.Choices != null && response.Choices.Count > 0)
+            {
+                var chatResponse = response.Choices[0].Message;
 
-            answer = chatResponse.Content;  
-            Debug.Log(answer);
-            courtManager.ShowAnswer(answer);  
+                chatMessages.Add(chatResponse);
+
+                answer = chatResponse.Content;
+                Debug.Log(answer);
+                courtManager.ShowLawyerAnswer(answer);
+            }
+
+            emotionHandler.PlayEmotion(answer);
         }
-
-        emotionHandler.PlayEmotion(answer);
     }
 
     public void PlayOnomatopoeia(string emotion)

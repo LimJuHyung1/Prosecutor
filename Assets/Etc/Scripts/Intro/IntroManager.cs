@@ -1,34 +1,39 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using System;
 using System.Collections;
 using UnityEngine.UI;
-using UnityEngine.InputSystem; // ²À ÇÊ¿ä!
+using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
+using Unity.VisualScripting; // ê¼­ í•„ìš”!
+using UnityEngine.Localization.Settings;
+
 
 public class IntroManager : MonoBehaviour
 {
-    public Image screen;    
+    public Dropdown localeDropdown;
+    public Image screen;
+    public Image language;
     public GameObject dialogue;
     private Image[] slides = new Image[2];
     private Text line;
-    private GameObject endWaitingMark;
+    private GameObject endWaitingMark;       
 
-
-    public AudioClip[] audioClips; // ¿Àµğ¿À Å¬¸³ ¹è¿­ (ÇÊ¿ä½Ã »ç¿ë)
+    public AudioClip[] audioClips; // ì˜¤ë””ì˜¤ í´ë¦½ ë°°ì—´ (í•„ìš”ì‹œ ì‚¬ìš©)
     public Camera[] cameras;
     public GameObject john;
     public GameObject wrench;
 
-
-    private float delay = 0.1f;     // ±ÛÀÚ´ç Ãâ·Â ¼Óµµ (ÃÊ)
+    private bool isChanging;
+    [SerializeField] private float delay = 0.1f;     // ê¸€ìë‹¹ ì¶œë ¥ ì†ë„ (ì´ˆ)
     private Action[] methods;
     private AudioSource audioSource;
 
     void Start()
     {
-        SwitchCamera(-1);
+        SwitchCamera(0);
         screen.gameObject.SetActive(true);
 
-        // ¸Ş¼ÒµåµéÀ» ¹è¿­¿¡ µî·Ï
+        // ë©”ì†Œë“œë“¤ì„ ë°°ì—´ì— ë“±ë¡
         methods = new Action[]
         {
             FirstScene,
@@ -46,8 +51,10 @@ public class IntroManager : MonoBehaviour
         slides[1] = dialogue.transform.GetChild(1).GetComponent<Image>();
 
         Slide(true, 0f);
-        methods[0]();
+        // methods[0]();
         audioSource.loop = false;
+
+        StartCoroutine(ChangeLocaleCoroutine(0));       // ê¸°ë³¸ ì–¸ì–´ ì˜ì–´ë¡œ ì„¤ì •
     }
 
     private void SwitchCamera(int index)
@@ -71,18 +78,18 @@ public class IntroManager : MonoBehaviour
 
     public IEnumerator ShowText(string fullText = "", Action onFinished = null)
     {
-        line.text = ""; // ÃÊ±âÈ­
+        line.text = ""; // ì´ˆê¸°í™”
 
-        // ±ÛÀÚ ÇÏ³ª¾¿ Ãâ·Â
+        // ê¸€ì í•˜ë‚˜ì”© ì¶œë ¥
         foreach (char c in fullText)
         {
             line.text += c;
             yield return new WaitForSeconds(delay);
         }
 
-        // ¸ğµç ÅØ½ºÆ®°¡ Ãâ·ÂµÈ ÈÄ ¡æ ÀÔ·Â ´ë±â
+        // ëª¨ë“  í…ìŠ¤íŠ¸ê°€ ì¶œë ¥ëœ í›„ â†’ ì…ë ¥ ëŒ€ê¸°
         bool waitingInput = true;
-        endWaitingMark.SetActive(true); // ÀÔ·Â ´ë±â ¸¶Å© È°¼ºÈ­
+        endWaitingMark.SetActive(true); // ì…ë ¥ ëŒ€ê¸° ë§ˆí¬ í™œì„±í™”
         while (waitingInput)
         {
             if (
@@ -97,12 +104,12 @@ public class IntroManager : MonoBehaviour
                 waitingInput = false;
             }
 
-            yield return null; // ´ÙÀ½ ÇÁ·¹ÀÓ±îÁö ´ë±â
+            yield return null; // ë‹¤ìŒ í”„ë ˆì„ê¹Œì§€ ëŒ€ê¸°
         }
 
-        endWaitingMark.SetActive(false); // ÀÔ·Â ´ë±â ¸¶Å© ºñÈ°¼ºÈ­
+        endWaitingMark.SetActive(false); // ì…ë ¥ ëŒ€ê¸° ë§ˆí¬ ë¹„í™œì„±í™”
 
-        // ÀÔ·ÂÀÌ °¨ÁöµÇ¸é ´ÙÀ½ ¾×¼Ç ½ÇÇà
+        // ì…ë ¥ì´ ê°ì§€ë˜ë©´ ë‹¤ìŒ ì•¡ì…˜ ì‹¤í–‰
         if (onFinished != null)
             onFinished();
     }
@@ -115,12 +122,13 @@ public class IntroManager : MonoBehaviour
 
     public void FirstScene()
     {
-        float decreaseY = 1f;   // ÁÙÀÏ y °ª (¿¹: 1¸¸Å­ ³»·Á°¡±â)
-        float duration = 5f;    // ÀÌµ¿ ½Ã°£ (1ÃÊ)
+        float decreaseY = 1f;   // ì¤„ì¼ y ê°’ (ì˜ˆ: 1ë§Œí¼ ë‚´ë ¤ê°€ê¸°)
+        float duration = 5f;    // ì´ë™ ì‹œê°„ (1ì´ˆ)
 
+        language.gameObject.SetActive(false);
         SwitchCamera(0);
         SetAudioClip(0);
-        audioSource.Play(); // ¿Àµğ¿À Å¬¸³ Àç»ı
+        audioSource.Play(); // ì˜¤ë””ì˜¤ í´ë¦½ ì¬ìƒ
 
         StartCoroutine(FirstCamera(decreaseY, duration));
     }
@@ -129,7 +137,7 @@ public class IntroManager : MonoBehaviour
     {
         yield return new WaitForSeconds(2f);
 
-        StartCoroutine(FadeUtility.Instance.FadeOut(screen, 3f));
+            StartCoroutine(FadeUtility.Instance.FadeOut(screen, 3f));
 
         Vector3 startPos = cameras[0].transform.position;
         Vector3 endPos = new Vector3(startPos.x, startPos.y - decreaseY, startPos.z);
@@ -141,42 +149,99 @@ public class IntroManager : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
 
-            // Lerp·Î ºÎµå·´°Ô ÀÌµ¿
+            // Lerpë¡œ ë¶€ë“œëŸ½ê²Œ ì´ë™
             cameras[0].transform.position = Vector3.Lerp(startPos, endPos, t);
 
             yield return null;
         }
 
-        // ÃÖÁ¾ À§Ä¡ º¸Á¤
+        // ìµœì¢… ìœ„ì¹˜ ë³´ì •
         cameras[0].transform.position = endPos;
-        StartCoroutine(ShowText("À¹...", SecondScene));
+
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        string localeLine = "";
+
+        if (currentLocale.Identifier.Code == "en")
+        {
+            localeLine = "Ugh...";            
+        }
+        else if(currentLocale.Identifier.Code == "it")
+        {
+            localeLine = "Ugh...";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            localeLine = "ã†ã£...";            
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            localeLine = "ìœ½...";
+        }
+        StartCoroutine(ShowText(localeLine, SecondScene));
     }
     
     private void SecondScene()
     {
         SwitchCamera(1);
-        line.color = Color.red; // ÅØ½ºÆ® »ö»ó ÃÊ±âÈ­
+        line.color = Color.red; // í…ìŠ¤íŠ¸ ìƒ‰ìƒ ì´ˆê¸°í™”
         StartCoroutine(SecondCamera());
     }
 
     private IEnumerator SecondCamera()
     {        
-        // Ä«¸Ş¶ó »óÇÏ ¹İº¹ ÀÌµ¿ ÄÚ·çÆ¾ ½ÃÀÛ
+        // ì¹´ë©”ë¼ ìƒí•˜ ë°˜ë³µ ì´ë™ ì½”ë£¨í‹´ ì‹œì‘
         Coroutine bobRoutine = StartCoroutine(CameraBob(cameras[1].transform, 0.05f, 0.5f));
 
-        // Ã¹ ´ë»ç
-        yield return StartCoroutine(ShowText("Çä... Çä..."));
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        string localeLine = "";
 
-        // Á¸ ¾Ö´Ï¸ŞÀÌ¼Ç Æ®¸®°Å
+        if (currentLocale.Identifier.Code == "en")
+        {
+            localeLine = "Huff... Huff...";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            localeLine = "Ans... ans...";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            localeLine = "ã¯ã... ã¯ã...";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            localeLine = "í—‰... í—‰...";
+        }        
+
+        // ì²« ëŒ€ì‚¬
+        yield return StartCoroutine(ShowText(localeLine));
+
+        // ì¡´ ì• ë‹ˆë©”ì´ì…˜ íŠ¸ë¦¬ê±°
         john.GetComponent<Animator>().SetTrigger("SecondScene");
 
-        // µÎ ¹øÂ° ´ë»ç (³¡³ª¸é ´ÙÀ½ ¾À ½ÇÇà)
-        yield return StartCoroutine(ShowText("²Ã ÁÁ´Ù", () =>
+        if (currentLocale.Identifier.Code == "en")
         {
-            // Ä«¸Ş¶ó »óÇÏ ÀÌµ¿ ¸ØÃã
+            localeLine = "Serves you right.";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            localeLine = "Ben ti sta.";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            localeLine = "ã–ã¾ã‚ã¿ã‚ã€‚";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            localeLine = "ê¼´ ì¢‹ë‹¤.";
+        }
+
+        // ë‘ ë²ˆì§¸ ëŒ€ì‚¬ (ëë‚˜ë©´ ë‹¤ìŒ ì”¬ ì‹¤í–‰)
+        yield return StartCoroutine(ShowText(localeLine, () =>
+        {
+            // ì¹´ë©”ë¼ ìƒí•˜ ì´ë™ ë©ˆì¶¤
             StopCoroutine(bobRoutine);
-            cameras[1].transform.localPosition = Vector3.zero; // ¿ø·¡ À§Ä¡·Î º¸Á¤
-            ThirdScene(); // ´ÙÀ½ ¾À È£Ãâ
+            cameras[1].transform.localPosition = Vector3.zero; // ì›ë˜ ìœ„ì¹˜ë¡œ ë³´ì •
+            ThirdScene(); // ë‹¤ìŒ ì”¬ í˜¸ì¶œ
         }));
     }
 
@@ -184,7 +249,7 @@ public class IntroManager : MonoBehaviour
     {
         Vector3 originalPos = cam.localPosition;
 
-        while (true) // ´ÙÀ½ ¾ÀÀ¸·Î ³Ñ¾î°¡±â Àü±îÁö °è¼Ó ¹İº¹
+        while (true) // ë‹¤ìŒ ì”¬ìœ¼ë¡œ ë„˜ì–´ê°€ê¸° ì „ê¹Œì§€ ê³„ì† ë°˜ë³µ
         {
             float newY = Mathf.Sin(Time.time * frequency) * amplitude;
             cam.localPosition = originalPos + new Vector3(0f, newY, 0f);
@@ -198,16 +263,37 @@ public class IntroManager : MonoBehaviour
     {
         SwitchCamera(2);
 
-        float moveX = -2f;    // xÃàÀ¸·Î ÀÌµ¿ÇÒ °ª (¿¹: 2¸¸Å­ ¿À¸¥ÂÊÀ¸·Î)
-        float duration = 5f; // ÀÌµ¿ ½Ã°£ (ÃÊ)
+        float moveX = -2f;    // xì¶•ìœ¼ë¡œ ì´ë™í•  ê°’ (ì˜ˆ: 2ë§Œí¼ ì˜¤ë¥¸ìª½ìœ¼ë¡œ)
+        float duration = 5f; // ì´ë™ ì‹œê°„ (ì´ˆ)
 
         StartCoroutine(ThirdCamera(moveX, duration));
     }
 
     private IEnumerator ThirdCamera(float moveX, float duration)
     {
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        string localeLine = "";
+
+        if (currentLocale.Identifier.Code == "en")
+        {
+            localeLine = "To think your mother died for that reason...";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            localeLine = "Sapere che tua madre Ã¨ morta per quella ragione...";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            localeLine = "æ¯ã•ã‚“ãŒãã‚“ãªç†ç”±ã§æ­»ã‚“ã ãªã‚“ã¦...";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            localeLine = "ì–´ë¨¸ë‹ˆê°€ ê·¸ëŸ° ì´ìœ ë¡œ ì£½ì€ ê±°ë¼ë‹ˆ...";
+        }
+
+
         john.GetComponent<Animator>().SetBool("ThirdScene", true);
-        StartCoroutine(ShowText("¾î¸Ó´Ï°¡ ±×·± ÀÌÀ¯·Î Á×Àº °Å¶ó´Ï...", FourthScene));
+        StartCoroutine(ShowText(localeLine, FourthScene));
 
         Vector3 startPos = cameras[2].transform.position;
         Vector3 endPos = new Vector3(startPos.x + moveX, startPos.y, startPos.z);
@@ -219,13 +305,13 @@ public class IntroManager : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
 
-            // ºÎµå·´°Ô xÁÂÇ¥ ÀÌµ¿
+            // ë¶€ë“œëŸ½ê²Œ xì¢Œí‘œ ì´ë™
             cameras[2].transform.position = Vector3.Lerp(startPos, endPos, t);
 
             yield return null;
         }
 
-        // ÃÖÁ¾ À§Ä¡ º¸Á¤
+        // ìµœì¢… ìœ„ì¹˜ ë³´ì •
         cameras[2].transform.position = endPos;
     }
 
@@ -234,26 +320,47 @@ public class IntroManager : MonoBehaviour
         SwitchCamera(3);
         john.GetComponent<Animator>().SetBool("ThirdScene", false);
 
-        float moveX = -2f;    // xÃàÀ¸·Î ÀÌµ¿ÇÒ °ª (¿¹: 2¸¸Å­ ¿À¸¥ÂÊÀ¸·Î)
-        float duration = 5f; // ÀÌµ¿ ½Ã°£ (ÃÊ)
+        float moveX = -2f;    // xì¶•ìœ¼ë¡œ ì´ë™í•  ê°’ (ì˜ˆ: 2ë§Œí¼ ì˜¤ë¥¸ìª½ìœ¼ë¡œ)
+        float duration = 5f; // ì´ë™ ì‹œê°„ (ì´ˆ)
 
-        line.color = Color.white; // ÅØ½ºÆ® »ö»ó ÃÊ±âÈ­
+        line.color = Color.white; // í…ìŠ¤íŠ¸ ìƒ‰ìƒ ì´ˆê¸°í™”
         StartCoroutine(FourthCamera(moveX, duration));
     }
 
     private IEnumerator FourthCamera(float moveX, float duration)
     {
-        // Èçµé¸² ÄÚ·çÆ¾ ½ÃÀÛ
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        string localeLine = "";
+
+        if (currentLocale.Identifier.Code == "en")
+        {
+            localeLine = "You...";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            localeLine = "Tu...";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            localeLine = "ãŠå‰...";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            localeLine = "ë„ˆ...";
+        }
+
+
+        // í”ë“¤ë¦¼ ì½”ë£¨í‹´ ì‹œì‘
         Coroutine shakeRoutine = StartCoroutine(CameraShake(cameras[3].transform, 0.001f, 5f));
 
-        yield return StartCoroutine(ShowText("³Ê...", FifthScene));
+        yield return StartCoroutine(ShowText(localeLine, FifthScene));
     }
 
     private IEnumerator CameraShake(Transform cam, float magnitude, float frequency)
     {
         Vector3 originalPos = cam.localPosition;
 
-        while (true) // °è¼Ó À¯Áö
+        while (true) // ê³„ì† ìœ ì§€
         {
             float x = (Mathf.PerlinNoise(Time.time * frequency, 0f) * 2f - 1f) * magnitude;
             float y = (Mathf.PerlinNoise(0f, Time.time * frequency) * 2f - 1f) * magnitude;
@@ -270,27 +377,66 @@ public class IntroManager : MonoBehaviour
 
         line.color = Color.red;
 
-        Vector3 target = john.transform.position; // Á¸À» Áß½ÉÀ¸·Î ¿ø ¿îµ¿
-        StartCoroutine(FifthCamera(target, 12f, 0.25f));        
+        Vector3 target = john.transform.position; // ì¡´ì„ ì¤‘ì‹¬ìœ¼ë¡œ ì› ìš´ë™
+        StartCoroutine(FifthCamera(target, 12f, 0.125f));        
     }
 
-    private IEnumerator FifthCamera(Vector3 targetPos, float radius = 5f, float angularSpeed = 0.5f)
+    private IEnumerator FifthCamera(Vector3 targetPos, float radius = 5f, float angularSpeed = 0.25f)
     {
         Transform cam = cameras[4].transform;
         float angle = 0f;
 
-        // Ä«¸Ş¶ó È¸Àü ÄÚ·çÆ¾ ½ÃÀÛ
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        string localeLine = "";
+
+        if (currentLocale.Identifier.Code == "en")
+        {
+            localeLine = "If you die, Emma will be mine too.";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            localeLine = "Se muori, anche Emma sarÃ  mia.";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            localeLine = "ãŠå‰ãŒæ­»ã­ã°ã€ã‚¨ãƒã‚‚ä¿ºã®ã‚‚ã®ã«ãªã‚‹ã€‚";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            localeLine = "ë„¤ê°€ ì£½ìœ¼ë©´ ì— ë§ˆë„ ë‚´ ê²ƒì´ ë˜ê² ì§€.";
+        }
+
+
+        // ì¹´ë©”ë¼ íšŒì „ ì½”ë£¨í‹´ ì‹œì‘
         Coroutine rotateRoutine = StartCoroutine(CameraRotate(cam, targetPos, radius, angularSpeed));
 
-        // ´ë»ç Ãâ·Â
-        yield return StartCoroutine(ShowText("³×°¡ Á×À¸¸é ¿¥¸¶µµ ³» °ÍÀÌ µÇ°ÚÁö"));
-        DropWrench(); // ·»Ä¡ ¶³¾î¶ß¸®±â
-        yield return StartCoroutine(ShowText("¾ÖÃÊ¿¡ Àª¸®¾ö ±× »÷´ÔÀº ¿¥¸¶°¡ ÀÌ¿ëÇÏ°í ÀÖÀ» »ÓÀÎ ³à¼®ÀÌ´Ï±î", () =>
+        // ëŒ€ì‚¬ ì¶œë ¥
+        yield return StartCoroutine(ShowText(localeLine));
+        DropWrench(); // ë Œì¹˜ ë–¨ì–´ëœ¨ë¦¬ê¸°
+
+        if (currentLocale.Identifier.Code == "en")
         {
-            // ´ë»ç°¡ ³¡³ª¸é Ä«¸Ş¶ó È¸Àü ¸ØÃã
+            localeLine = "From the start, Williamâ€™s just a fool Emma has been using.";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            localeLine = "Fin dallâ€™inizio William non Ã¨ altro che uno sciocco che Emma ha sfruttato.";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            localeLine = "ãã‚‚ãã‚‚ã‚¦ã‚£ãƒªã‚¢ãƒ ãªã‚“ã¦ã€ã‚¨ãƒã«åˆ©ç”¨ã•ã‚Œã¦ã„ã‚‹ã ã‘ã®ã‚„ã¤ã ã€‚";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            localeLine = "ì• ì´ˆì— ìœŒë¦¬ì—„ ê·¸ ìƒŒë‹˜ì€ ì— ë§ˆê°€ ì´ìš©í•˜ê³  ìˆì„ ë¿ì¸ ë…€ì„ì´ë‹ˆê¹Œ.";
+        }
+
+        yield return StartCoroutine(ShowText(localeLine, () =>
+        {
+            // ëŒ€ì‚¬ê°€ ëë‚˜ë©´ ì¹´ë©”ë¼ íšŒì „ ë©ˆì¶¤
             StopCoroutine(rotateRoutine);
 
-            // SixthScene ½ÇÇà
+            // SixthScene ì‹¤í–‰
             SixthScene();
         }));
     }
@@ -301,7 +447,7 @@ public class IntroManager : MonoBehaviour
         float angle = 0f;
         Vector3 originalPos = cam.position;
 
-        while (true) // ´ÙÀ½ ¾À Àü±îÁö ¹İº¹
+        while (true) // ë‹¤ìŒ ì”¬ ì „ê¹Œì§€ ë°˜ë³µ
         {
             angle += Time.deltaTime * angularSpeed;
 
@@ -319,15 +465,15 @@ public class IntroManager : MonoBehaviour
     {
         if (wrench != null)
         {
-            // ºÎ¸ğ °ü°è ²÷±â
+            // ë¶€ëª¨ ê´€ê³„ ëŠê¸°
             wrench.transform.SetParent(null);
 
-            // Rigidbody°¡ ¾ø´Ù¸é Ãß°¡
+            // Rigidbodyê°€ ì—†ë‹¤ë©´ ì¶”ê°€
             Rigidbody rb = wrench.GetComponent<Rigidbody>();
             if (rb == null)
                 rb = wrench.AddComponent<Rigidbody>();
 
-            // ÃÊ±â ÈûÀ» °¡ÇØ Æ¢¾î³ª°¡°Ô (¿É¼Ç)
+            // ì´ˆê¸° í˜ì„ ê°€í•´ íŠ€ì–´ë‚˜ê°€ê²Œ (ì˜µì…˜)
             rb.AddForce(john.transform.forward * 2f + Vector3.up * 3f, ForceMode.Impulse);
         }
 
@@ -346,14 +492,53 @@ public class IntroManager : MonoBehaviour
 
     private IEnumerator SixthCamera()
     {
-        yield return StartCoroutine(ShowText("¸ğµÎ ³×°¡ ¸¸µç °á°ú¾ß"));
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        string localeLine = "";
+
+        if (currentLocale.Identifier.Code == "en")
+        {
+            localeLine = "This is all the result of what you did.";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            localeLine = "Ãˆ tutto il risultato delle tue azioni.";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            localeLine = "å…¨éƒ¨ãŠå‰ãŒæ‹›ã„ãŸçµæœã ã€‚";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            localeLine = "ëª¨ë‘ ë„¤ê°€ ë§Œë“  ê²°ê³¼ì•¼.";
+        }
+
+        yield return StartCoroutine(ShowText(localeLine));
+
+        if (currentLocale.Identifier.Code == "en")
+        {
+            localeLine = "Farewell, Henry.";
+        }
+        else if (currentLocale.Identifier.Code == "it")
+        {
+            localeLine = "Addio, Henry.";
+        }
+        else if (currentLocale.Identifier.Code == "ja")
+        {
+            localeLine = "ã•ã‚‰ã°ã ã€ãƒ˜ãƒ³ãƒªãƒ¼ã€‚";
+        }
+        else if (currentLocale.Identifier.Code == "ko")
+        {
+            localeLine = "ì‘ë³„ì´ë‹¤, í—¨ë¦¬.";
+        }
+
         john.GetComponent<Animator>().SetTrigger("SixthScene");
-        yield return StartCoroutine(ShowText("ÀÛº°ÀÌ´Ù, Çî¸®"));
+        yield return StartCoroutine(ShowText(localeLine));
         john.GetComponent<Animator>().SetBool("SixthScene2", true);
 
         StartCoroutine(FadeUtility.Instance.FadeOut(line, 3f));
         yield return new WaitForSeconds(3f);
-        StartCoroutine(FadeUtility.Instance.FadeIn(screen, 5f));
+        yield return StartCoroutine(FadeUtility.Instance.FadeIn(screen, 5f));
+        SceneManager.LoadScene("William");
     }
 
 
@@ -396,4 +581,38 @@ public class IntroManager : MonoBehaviour
         rect.anchoredPosition = endPos;
     }
 
+
+
+
+
+    public void ChangeLocale()
+    {
+        if (isChanging) return;
+
+        StartCoroutine(ChangeLocaleCoroutine(localeDropdown.value));
+
+        var currentLocale = LocalizationSettings.SelectedLocale;
+        if (currentLocale.Identifier.Code == "en" || currentLocale.Identifier.Code == "it") delay = 0.05f;
+    }
+
+
+    IEnumerator ChangeLocaleCoroutine(int index)
+    {
+        isChanging = true;
+
+        yield return LocalizationSettings.InitializationOperation;
+        LocalizationSettings.SelectedLocale = LocalizationSettings.AvailableLocales.Locales[index];
+
+        isChanging = false;
+    }
+
+
+    public void ExitGame()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
 }

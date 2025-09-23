@@ -148,4 +148,42 @@ public class FadeUtility : MonoBehaviour
 
         source.volume = 1f; // ���� ���� 1
     }
+
+
+
+
+
+    public IEnumerator FlashColor(Graphic graphic, Color targetColor, float duration = 0.3f, float holdTime = 0.5f)
+    {
+        if (graphic == null) yield break;
+
+        Color originalColor = graphic.color;
+        float elapsed = 0f;
+
+        // 원래 색 → targetColor로 보간
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            graphic.color = Color.Lerp(originalColor, targetColor, elapsed / duration);
+            yield return null;
+        }
+
+        graphic.color = targetColor;
+
+        // 잠시 유지
+        if (holdTime > 0f)
+            yield return new WaitForSeconds(holdTime);
+
+        elapsed = 0f;
+
+        // targetColor → 원래 색으로 보간
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            graphic.color = Color.Lerp(targetColor, originalColor, elapsed / duration);
+            yield return null;
+        }
+
+        graphic.color = originalColor; // 안전하게 원래 색 고정
+    }
 }

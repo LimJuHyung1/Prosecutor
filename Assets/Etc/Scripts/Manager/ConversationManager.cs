@@ -21,6 +21,7 @@ public class ConversationManager : MonoBehaviour
     public Timer timer;
     private Image[] slides = new Image[2];
     // public SummaryManager summaryManager;
+    public HintManager hintManager;
     public InvestigationManager investigationManager;
     public LogManager logManager;
     public RecommendationManager recommendationManager;
@@ -249,9 +250,9 @@ public class ConversationManager : MonoBehaviour
     /// <summary>
     /// ��ȭ UI�� Ȱ��ȭ/��Ȱ��ȭ
     /// </summary>
-    public void SetConversationUI(bool b)
+    public void SetActiveConversationUI(bool state)
     {
-        conversationUI.SetActive(b);
+        conversationUI.SetActive(state);
     }
 
 
@@ -279,10 +280,12 @@ public class ConversationManager : MonoBehaviour
             return;
         }
 
-          string emotion = "";
+        string emotion = "";
         int pressureLevel = 0;
         int revealedSecret = 0;
         string responseText = "";
+
+        recommendationManager.SetInteractableButtons(false);
 
         try
         {
@@ -306,15 +309,18 @@ public class ConversationManager : MonoBehaviour
             if (pressureLevel == 0)
                 NPCLine.color = Color.white;
             else if (pressureLevel == 1) NPCLine.color = Color.yellow;
-            else if (pressureLevel == 2)
+            else if (pressureLevel == 2 && revealedSecret != 0)
             {
                 NPCLine.color = Color.red;
                 if (revealedSecretDict.ContainsKey(revealedSecret) && !revealedSecretDict[revealedSecret])
                 {
                     revealedSecretDict[revealedSecret] = true;
                     timer.AddTime(120);
+                    timer.GetComponent<AudioSource>().Play();
+                    hintManager.ShowHint(revealedSecret - 1);
                 }                     
             }
+            else if (pressureLevel == 2 && revealedSecret != 0) NPCLine.color = Color.white;
 
 
             /* 나중에 적용하기
@@ -540,6 +546,22 @@ public class ConversationManager : MonoBehaviour
         return isTalking;
     }
 
+
+
+
+    /// <summary>
+    /// revealSecretDict의 모든 값이 true인지 확인
+    /// </summary>
+    /// <returns></returns>
+    public bool AreAllSecretsRevealed()
+    {
+        foreach (var kvp in revealedSecretDict)
+        {
+            if (!kvp.Value)
+                return false;
+        }
+        return true;
+    }
 
 
 
