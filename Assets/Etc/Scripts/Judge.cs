@@ -14,6 +14,7 @@ public class Judge : MonoBehaviour
     protected List<ChatMessage> chatMessages;
     protected OpenAIApi openAIApi;
 
+    public List<EmotionClipList> emotionAudioClips; // 2차원 리스트로 변경
     public CourtManager courtManager;
     public SpecificNPC specificNPC; // SpecificNPC 스크립트 참조
 
@@ -229,6 +230,55 @@ public class Judge : MonoBehaviour
         }
     }
 
+
+
+
+
+    [System.Serializable]
+    public class EmotionClipList
+    {
+        public List<AudioClip> clips;  // 1차원 리스트
+    }
+
+    public void PlayOnomatopoeia(string emotion)
+    {
+        int index = -1;
+
+        switch (emotion)
+        {
+            case "Neutral": index = 0; animator.SetTrigger("Neutral"); break;
+            case "Joy": index = 1; animator.SetTrigger("Joy"); break;
+            case "Sadness": index = 2; animator.SetTrigger("Sadness"); break;
+            case "Anger": index = 3; animator.SetTrigger("Anger"); break;
+            case "Fear": index = 4; animator.SetTrigger("Fear"); break;
+            case "Disgust": index = 5; animator.SetTrigger("Disgust"); break;
+            case "Surprise": index = 6; animator.SetTrigger("Surprise"); break;
+            default:
+                Debug.LogWarning("파싱 오류: " + emotion);
+                return;
+        }
+
+        // emotionAudioClips[index] → EmotionClipList
+        if (index >= 0 && index < emotionAudioClips.Count)
+        {
+            EmotionClipList clipList = emotionAudioClips[index];
+
+            if (clipList != null && clipList.clips != null && clipList.clips.Count > 0)
+            {
+                AudioClip clipToPlay = clipList.clips[Random.Range(0, clipList.clips.Count)];
+                audioSource.clip = clipToPlay;
+                audioSource.Play();
+            }
+            else
+            {
+                Debug.LogWarning($"'{emotion}' 감정의 효과음이 비어 있습니다.");
+            }
+        }
+        else
+        {
+            Debug.LogWarning($"'{emotion}' 인덱스({index})가 emotionAudioClips 범위를 벗어났습니다.");
+        }
+    }
 
 
     public string GetRole(string npcName) => roleInfoManager.GetRole(npcName);

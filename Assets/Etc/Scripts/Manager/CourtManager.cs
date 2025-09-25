@@ -23,12 +23,11 @@ public class CourtManager : MonoBehaviour
     public CourtRole subjectRole;
     public CourtRole targetRole;
 
-    public Camera[] cameras;
-    [SerializeField] private float zoomSpeed = 5f;   // 줌 속도 (값이 클수록 빠르게 변함)
-    [SerializeField] private float minFOV = 20f;     // 최소 줌 (가까이)
-    [SerializeField] private float maxFOV = 60f;     // 최대 줌 (멀리)
-    private Dictionary<int, Coroutine> zoomCoroutines = new Dictionary<int, Coroutine>();
+    public CourtCameraManager courtCameraManager;
 
+
+    public Button[] roleButtons;    // 0 : Judge, 1 : Lawyer
+    private Button currentSelectedButton; // 현재 선택된 버튼 추적
     public Image screen;
     public GameObject conversationUI;
     public GameObject dialogue;  // ��ȭ UI    
@@ -36,9 +35,18 @@ public class CourtManager : MonoBehaviour
 
     private Button endConversationBtn;  // ��ȭ ���� ��ư
     private InputField inputField;
+    public InputField InputField
+    {
+        get { return inputField; }
+    }
     [SerializeField] private Text nameText;
     [SerializeField] private Text lineText;
+    public Text LineText
+    {
+        get { return lineText; }
+    }
     [SerializeField] private GameObject endWaitingMark;
+
 
     public string tmpQuestion = "";
     public bool isReadyToSkip = false;  // NPC�� ���� ��� ���� �� true�� �����
@@ -84,6 +92,12 @@ public class CourtManager : MonoBehaviour
         endConversationBtn = conversationUI.transform.GetChild(0).GetComponent<Button>();
         inputField = conversationUI.GetComponentInChildren<InputField>(true);
 
+        if (roleButtons[1] != null)
+        {
+            roleButtons[1].onClick.Invoke();
+            ClickRoleButton(1);
+        }            
+
         slides[0] = dialogue.transform.GetChild(0).GetComponent<Image>();
         slides[1] = dialogue.transform.GetChild(1).GetComponent<Image>();
 
@@ -96,7 +110,33 @@ public class CourtManager : MonoBehaviour
         });
 
         StartConversation();
+        courtCameraManager.StartInputCheckRoutine();
     }
+
+    private void Update()
+    {
+        if (courtCameraManager == null) return;
+
+        if (inputField != null)
+        {
+            if (!inputField.interactable)
+            {
+                // 입력 불가 → 카메라 연출 시작
+                courtCameraManager.StartIdleCameraMovement();
+            }
+            else
+            {
+                // 입력 가능 → 카메라 연출 중지
+                courtCameraManager.StopIdleCameraMovement();
+            }
+        }
+    }
+
+
+
+
+
+
 
     private IEnumerator WaitAndLogInput()
     {
@@ -324,7 +364,7 @@ public class CourtManager : MonoBehaviour
 
         if (!noResponse)
         {
-            judge.GetComponent<Animator>().SetTrigger(emotion);
+            judge.PlayOnomatopoeia(emotion);
 
             sentencesQueue.Clear();
 
@@ -383,6 +423,7 @@ public class CourtManager : MonoBehaviour
         }
 
         lawyer.GetComponent<Animator>().SetTrigger(emotion);
+        lawyer.PlayOnomatopoeia(emotion);
 
         sentencesQueue.Clear();
 
@@ -456,17 +497,17 @@ public class CourtManager : MonoBehaviour
         switch (subjectRole.ToString())
         {
             case "Player":
-                ZoomIn(0);
+                courtCameraManager.ZoomIn(0);
                 nameText.color = Color.darkRed;
                 nameText.text = "수잔";
                 break;
             case "Judge":
-                ZoomIn(1);
+                courtCameraManager.ZoomIn(1);
                 nameText.color = Color.gray;
                 nameText.text = "판사";
                 break;
             case "Lawyer":
-                ZoomIn(2);
+                courtCameraManager.ZoomIn(2);
                 nameText.color = Color.cyan;
                 nameText.text = "변호사";
                 break;
@@ -503,22 +544,10 @@ public class CourtManager : MonoBehaviour
             SetActiveEndConversationButton(true);
             SetInteractableAskField(true);
             FocusOnAskField();
+            courtCameraManager.StopInputCheckRoutine();
         }
     }
 
-    private IEnumerator SetPlayerTurn()
-    {
-        // yield return new WaitUntil(() => isAbleToGoNext);
-
-        IsReadyToSkip = false;
-        SetActiveEndConversationButton(true);
-        SetInteractableAskField(true);
-        ChangeIsSkipping(true);
-        FocusOnAskField();
-        displayCoroutine = null;
-
-        yield return null;
-    }
 
 
 
@@ -629,6 +658,35 @@ public class CourtManager : MonoBehaviour
 
 
 
+    public void ClickRoleButton(int index)
+    {
+        for (int i = 0; i < roleButtons.Length; i++)
+        {
+            if (i == index)
+            {
+                // 버튼 색상 변경
+                SetButtonSelectedColor(roleButtons[i], Color.blue);
+
+                // 선택 상태로 만들기
+                roleButtons[i].Select();
+                currentSelectedButton = roleButtons[i];
+            }
+            else
+            {
+                // 다른 버튼은 해제 색상
+                SetButtonSelectedColor(roleButtons[i], Color.white);
+            }
+        }
+    }
+
+    private void SetButtonSelectedColor(Button button, Color color)
+    {
+        ColorBlock colors = button.colors;
+        colors.normalColor = color;     // 일반 상태 색
+        colors.selectedColor = color;   // 선택 상태 색
+        button.colors = colors;
+    }
+
 
 
 
@@ -677,58 +735,4 @@ public class CourtManager : MonoBehaviour
 
 
 
-    private void SwitchCamera(int index)
-    {
-        if (lineText != null)
-            lineText.text = "";
-
-        for (int i = 0; i < cameras.Length; i++)
-        {
-            cameras[i].gameObject.SetActive(false);
-        }
-
-        if (index != -1)
-            cameras[index].gameObject.SetActive(true);
-    }
-
-    // 줌 인 호출
-    // 줌 요청 (양수 = 줌 아웃, 음수 = 줌 인)
-    public void Zoom(int index, float amount)
-    {
-        if (index < 0 || index >= cameras.Length) return;
-
-        SwitchCamera(index);
-
-        float targetFOV = Mathf.Clamp(cameras[index].fieldOfView + amount, minFOV, maxFOV);
-
-        // 기존 코루틴 중지
-        if (zoomCoroutines.ContainsKey(index) && zoomCoroutines[index] != null)
-            StopCoroutine(zoomCoroutines[index]);
-
-
-        // 새 코루틴 실행
-        zoomCoroutines[index] = StartCoroutine(SmoothZoom(index, targetFOV));
-    }
-
-    private IEnumerator SmoothZoom(int index, float targetFOV)
-    {
-        Camera cam = cameras[index];
-        
-        while (Mathf.Abs(cam.fieldOfView - targetFOV) > 0.05f)
-        {            
-            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, Time.deltaTime * zoomSpeed);
-            yield return null;
-        }
-        cam.fieldOfView = targetFOV; // 최종 보정
-        
-        for(int i = 0; i < cameras.Length; i++)
-        {
-            if (i != index)
-                cameras[i].fieldOfView = 60f;
-        }
-    }
-
-    // 편의 함수
-    public void ZoomIn(int index) => Zoom(index, -10f);
-    public void ZoomOut(int index) => Zoom(index, 10f);
 }

@@ -17,27 +17,28 @@ public class Lawyer : NPC
 
     public CourtManager courtManager;
     public SpecificNPC specificNPC; // SpecificNPC 스크립트 참조
-    public List<EmotionClipList> audioClipsPerEmotion;  // 0: Neutral, 1: Joy, 2: Sadness, 3: Anger, 4: Fear, 5: Disgust, 6: Surprise    
+    public List<EmotionClipList> maleAudioClipsPerEmotion;  // 0: Neutral, 1: Joy, 2: Sadness, 3: Anger, 4: Fear, 5: Disgust, 6: Surprise    
+    public List<EmotionClipList> femaleAudioClipsPerEmotion;  // 0: Neutral, 1: Joy, 2: Sadness, 3: Anger, 4: Fear, 5: Disgust, 6: Surprise    
 
     public CourtRole currentRole = CourtRole.Lawyer;
 
     protected void Start()
     {
         openAIApi = new OpenAIApi();
-        SetRole();
-
-        emotionHandler = new NPCEmotionHandler(animator, audioSource, cc, audioClipsPerEmotion);
+        SetRole();        
 
         // 시작 시 랜덤 외형 적용
         RandomizeAppearancePartial();
 
         if (cc.Settings.name.Contains("Male"))
-            {
+        {
             animator.runtimeAnimatorController = maleAnimationController;
+            emotionHandler = new NPCEmotionHandler(animator, audioSource, cc, maleAudioClipsPerEmotion);
         }
         else if (cc.Settings.name.Contains("Female"))
         {
             animator.runtimeAnimatorController = femaleAnimationController;
+            emotionHandler = new NPCEmotionHandler(animator, audioSource, cc, femaleAudioClipsPerEmotion);
         }
     }
 
