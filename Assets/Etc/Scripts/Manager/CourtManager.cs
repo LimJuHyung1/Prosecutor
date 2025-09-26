@@ -110,29 +110,8 @@ public class CourtManager : MonoBehaviour
         });
 
         StartConversation();
-        courtCameraManager.StartInputCheckRoutine();
+        // courtCameraManager.StartInputCheckRoutine();
     }
-
-    private void Update()
-    {
-        if (courtCameraManager == null) return;
-
-        if (inputField != null)
-        {
-            if (!inputField.interactable)
-            {
-                // 입력 불가 → 카메라 연출 시작
-                courtCameraManager.StartIdleCameraMovement();
-            }
-            else
-            {
-                // 입력 가능 → 카메라 연출 중지
-                courtCameraManager.StopIdleCameraMovement();
-            }
-        }
-    }
-
-
 
 
 
@@ -303,8 +282,10 @@ public class CourtManager : MonoBehaviour
 
     public void ShowPlayerAnswer()
     {
-        string[] sentences = Regex.Split(GetAskFieldText(), @"(?<!(\.{2,}))(?<=[.!?])\s+");
+        // 플레이어 입력 시 카메라 연출 중단
+        // courtCameraManager.StopIdleCameraMovement();
 
+        string[] sentences = Regex.Split(GetAskFieldText(), @"(?<!(\.{2,}))(?<=[.!?])\s+");
         foreach (string part in sentences)
         {
             if (!string.IsNullOrWhiteSpace(part))
@@ -544,7 +525,10 @@ public class CourtManager : MonoBehaviour
             SetActiveEndConversationButton(true);
             SetInteractableAskField(true);
             FocusOnAskField();
-            courtCameraManager.StopInputCheckRoutine();
+            // courtCameraManager.StopInputCheckRoutine();
+
+            // 대화 종료 후 Idle 카메라 다시 시작
+            // courtCameraManager.StartIdleCameraMovement();
         }
     }
 
